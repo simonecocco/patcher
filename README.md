@@ -54,6 +54,7 @@ python3 patcher.py f file.txt
 
 # Opzioni disponibili
 * `-q`: non mostra i crediti e la versione
-* `--no-bkp`: utilizzabile solo con l'azione `b`, serve a non far fare il backup della patch corrente in caso di ripristino
+* `--no-bkp`: serve a non far fare il backup della patch corrente in caso di ripristino
 * `--no-docker`: una volta finita l'operazione con i file non eseguirà la compilazione con docker
 * `--hard-build`: distrugge il container e lo riporta su (da utilizzare solo in caso di necessità). Per utilizzarla è necessario non sia presente `--no-docker`
+* `--back` o `-b`: usabile solo con file, serve per annullare un gruppo di patch (uguale a b \[files\] -1)
