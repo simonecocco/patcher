@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 import sys
-from turtle import back
 from colorama import Fore, Back, Style
 import os
 from subprocess import call, Popen, PIPE
