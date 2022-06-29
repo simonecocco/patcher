@@ -9,7 +9,7 @@ import re
 current_dir: str = os.getcwd() + '/'
 tab_char = '\t'
 new_line = '\n'
-VERSION: str = '1.2.0'
+VERSION: str = '1.2.1'
 
 # Stampa i crediti e la versione
 def print_credit() -> None:
@@ -219,7 +219,9 @@ restore: bool = '--back' in sys.argv or '-b' in sys.argv
 
 action: str = sys.argv[1]
 first_arg: str = sys.argv[2]
-second_arg: str | None = sys.argv[3] if action != 'f' and action != 'file' else None
+second_arg: str = ''
+if if action != 'f' and action != 'file':
+	second_arg = sys.argv[3]
 
 if action == 'apply' or action == 'a':
     apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
