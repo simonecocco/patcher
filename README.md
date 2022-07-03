@@ -5,6 +5,8 @@
 Questo file semplifica la gestione delle patch dei servizi. Esso permette di patchare uno o più file per poi ritornare indietro con le versioni.
 
 # Come si usa?
+Il file deve essere posizonato nella directory home dove son presenti i servizi delle AD
+
 Per invocarlo si usa `./patcher.py` o `python3 patcher.py`.
 ```Shell
 python3 patcher.py AZIONI argomento1 argomento2 OPZIONI
