@@ -1,66 +1,18 @@
 #!/usr/bin/python3
 
-import sys
-from colorama import Fore, Back, Style
-import os
-from subprocess import call, Popen, PIPE
-import re
+from params import Params
+import credits
+from file_manipulation import Filex
 
-current_dir: str = os.getcwd() + '/'
+from os import getcwd
+
+'''
 tab_char = '\t'
 new_line = '\n'
-VERSION: str = '1.2.1'
 
-# Stampa i crediti e la versione
-def print_credit() -> None:
-    print(Fore.BLUE + '''
-▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-█▀▄▄▀█ ▄▄▀█▄ ▄█▀▄▀█ ████ ▄▄█ ▄▄▀
-█ ▀▀ █ ▀▀ ██ ██ █▀█ ▄▄ █ ▄▄█ ▀▀▄
-█ ████▄██▄██▄███▄██▄██▄█▄▄▄█▄█▄▄
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-
-    ''' + Fore.RESET)
-    print(Fore.GREEN + 'made with ❤️ from d1dpvl' + Fore.RESET + f'\nVersione: {VERSION}\n')
-
-# si assicura che il makefile esista
-def makefile_check(path: str) -> None:
-    target: str = os.path.join(path, 'makefile')
-    if not os.path.exists(target) or not os.path.isfile(target):
-        makefile = open(target, 'w')
-        makefile.write('all: build up\n')
-        makefile.write('build:\n\tsudo docker-compose build\n')
-        makefile.write('up:\n\tsudo docker-compose up --build -d\n')
-        makefile.write('down:\n\tsudo docker-compose down\n')
-        makefile.write('hard: build down up\n')
-        makefile.close()
-
-# Chiama un processo e ritorna il suo output
-def call_process(cmd: list) -> list:
-    process: Popen = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    stdout, stderr = process.communicate()
-    return [stdout.decode('utf-8'), stderr.decode('utf-8')]
-
-# Stampa la guida
-def print_help() -> None:
-    print('''come usarlo:
-    [apply a] [path del vecchio file] [path del file] OPZIONI
-    [back b] [path del file] [numero versione] OPZIONI
-    [file f] [file con le modifiche multiple] OPZIONI
-
-    OPZIONI
-
-    -q -> non stampa i crediti
-    --no-bkp -> non fa il backup del file che si va a sostituire
-    --no-docker -> non fa il build del container
-    --hard-build -> esegue un docker-compose down e poi up. Non funziona se --no-docker è presente
-    --back -> al posto di applicare la patch, torna una versione indietro per tutti i file (può essere usato solo con 'f')
-
-    ''')
-    sys.exit(0)
 
 # controlla che il path sia a posto
-def validate(path: str, dir_allowed: bool=True) -> bool:
+def validate(path: str, dir_allowed: bool = True) -> bool:
     if os.path.exists(path):
         if os.path.isfile(path) or dir_allowed:
             if not os.access(path, os.R_OK) or not os.access(path, os.W_OK):
@@ -76,19 +28,6 @@ def validate(path: str, dir_allowed: bool=True) -> bool:
         sys.exit(1)
         return False
 
-
-# mostra le differenze
-def get_differences(path_old: str, path_new: str) -> str:
-    stdout, stderr = call_process(['diff', path_old, path_new])
-    old: list = []
-    new: list = []
-    for line in stdout.split('\n'):
-        if line.startswith('<'):
-            old.append(line)
-        elif line.startswith('>'):
-            new.append(line)
-    return f"{Fore.CYAN}{path_old}:{new_line}{(tab_char+new_line).join(old)}{new_line*2}{Fore.GREEN}{path_new}:{new_line}{(tab_char+new_line).join(new)}{Fore.RESET}"
-
 def dir_safe(dirpath: str, filepath: str) -> str:
     validate(dirpath, dir_allowed=True)
     if os.path.isdir(dirpath):
@@ -98,26 +37,29 @@ def dir_safe(dirpath: str, filepath: str) -> str:
     else:
         return dirpath
 
+
 # esegue il backup del file
 def backup_file(path: str) -> None:
     path_n: int = 0
     while os.path.exists(f'{path}.bkp{path_n}'):
         path_n += 1
-    call(['cp', path, path+f'.bkp{path_n}'])
+    call(['cp', path, path + f'.bkp{path_n}'])
     print(f'new file {path}.bkp{path_n}')
     if not os.path.exists(f'{path}.bkp{path_n}'):
         print(f'Backup failed ({path})')
         sys.exit(1)
     print(Fore.YELLOW + f'Per tornare indietro usa\nback {path} {path_n}' + Fore.RESET)
 
+
 # applica la patch
-def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_build: bool=True, quiet: bool=False, hard_build: bool=False) -> str:
+def apply_patch(path_orig: str, path_new_file: str, backup: bool = True, docker_build: bool = True, quiet: bool = False,
+                hard_build: bool = False) -> str:
     print(f'patching {path_orig} with {path_new_file}')
     validate(path_new_file, dir_allowed=False)
     path_orig = dir_safe(path_orig, path_new_file)
     diff: str = get_differences(path_orig, path_new_file)
     risp: str = str(input(f"sei sicuro di voler applicare la patch? (y/n)\nGuarda le modifiche:\n{diff}\n")).strip()
-    if not ('y' in risp) and not('Y' in risp):
+    if not ('y' in risp) and not ('Y' in risp):
         print('Patch non applicata')
         sys.exit(1)
     print(path_orig)
@@ -135,8 +77,10 @@ def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_bu
     print('Patch applicata')
     return makefile_path
 
+
 # torna indietro con le versioni
-def back2version(path: str, version: int, backup: bool=True, docker_build: bool=True, hard_build: bool=False) -> str:
+def back2version(path: str, version: int, backup: bool = True, docker_build: bool = True,
+                 hard_build: bool = False) -> str:
     path_n: int = 0
     while os.path.exists(f'{path}.bkp{path_n}'):
         path_n += 1
@@ -146,10 +90,10 @@ def back2version(path: str, version: int, backup: bool=True, docker_build: bool=
     if not os.path.exists(target_path):
         print(f'versione {target_version} inesistente ({target_path})')
         sys.exit(1)
-    
+
     diff: str = get_differences(path, target_path)
     risp: str = str(input(f"sei sicuro di voler tornare indietro? (y/n)\nGuarda le modifiche:\n{diff}\n")).strip()
-    if not ('y' in risp) and not('Y' in risp):
+    if not ('y' in risp) and not ('Y' in risp):
         print('Patch non applicata')
         sys.exit(1)
     if backup:
@@ -167,8 +111,10 @@ def back2version(path: str, version: int, backup: bool=True, docker_build: bool=
     print('Restore completed')
     return makefile_path
 
+
 # applica molteplici patch
-def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backup: bool=True, restore: bool=False) -> None:
+def parse_file(path: str, docker_build: bool = True, hard_build: bool = False, backup: bool = True,
+               restore: bool = False) -> None:
     validate(path, dir_allowed=False)
     print(f'leggo da {path}')
 
@@ -180,10 +126,12 @@ def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backu
         patch_path = patch_path.strip()
         if len(patch_path) <= 1 and docker_build and (last_makefile_path is not None):
             if hard_build:
-                print(Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
+                print(
+                    Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
                 call(['make', 'hard', '-C', last_makefile_path])
             else:
-                print(Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
+                print(
+                    Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
                 call(['make', '-C', last_makefile_path])
             last_makefile_path = None
         elif len(patch_path) > 2:
@@ -191,43 +139,58 @@ def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backu
                 path_orig, path_new_file = re.findall('^([\/\S\s]{1,})\s([\S\s]{1,})$', patch_path)[0]
                 if not restore:
                     print(Fore.YELLOW + f'{path_orig} -> {path_new_file}' + Fore.RESET)
-                    last_makefile_path = apply_patch(path_orig, path_new_file, docker_build=False, quiet=True, backup=backup)
+                    last_makefile_path = apply_patch(path_orig, path_new_file, docker_build=False, quiet=True,
+                                                     backup=backup)
                 else:
                     print(Fore.YELLOW + f'{path_orig}' + Fore.RESET)
-                    last_makefile_path = back2version(dir_safe(path_orig, path_new_file), -1, backup=backup, docker_build=False)
+                    last_makefile_path = back2version(dir_safe(path_orig, path_new_file), -1, backup=backup,
+                                                      docker_build=False)
             except:
                 print(f'{path_orig} non applicata')
     if docker_build and (last_makefile_path is not None):
-            if hard_build:
-                print(Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', 'hard', '-C', last_makefile_path])
-            else:
-                print(Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', '-C', last_makefile_path])
-            last_makefile_path = None
-        
-# main
-if '-q' not in sys.argv:
-    print_credit()
-if len(sys.argv) < 3 or 'help' in sys.argv:
-    print_help()
+        if hard_build:
+            print(
+                Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
+            call(['make', 'hard', '-C', last_makefile_path])
+        else:
+            print(
+                Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
+            call(['make', '-C', last_makefile_path])
+        last_makefile_path = None
+'''
 
-recover_backup: bool = '--no-bkp' not in sys.argv
-docker_build: bool = '--no-docker' not in sys.argv
-hard_build: bool = '--hard-build' in sys.argv
-restore: bool = '--back' in sys.argv or '-b' in sys.argv
+current_dir: str = getcwd() + '/'
 
-action: str = sys.argv[1]
-first_arg: str = sys.argv[2]
-second_arg: str = ''
-if if action != 'f' and action != 'file':
-	second_arg = sys.argv[3]
 
-if action == 'apply' or action == 'a':
-    apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
-elif action == 'back' or action == 'b':
-    back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
-elif action == 'file' or action == 'f':
-    parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup, restore=restore)
-else:
-    print_help()
+# MAIN
+if __name__ == '__main__':
+    filex: Filex = Filex()
+    p: Params = Params(min_len=1, help_function=credits.print_help)  # gestione dei parametri
+    if not p.check(['-q', '--quiet']):  # [-q, --quiet] dice al programma di non stampare i crediti
+        credits.print_credit()
+    if p.check(['-h', '--help']):  # [-h, --help] mostra l'aiuto
+        credits.print_help()
+
+    recover_backup: bool = p.check('--no-bkp')
+    docker_build: bool = p.check('--no-docker')
+    hard_build: bool = p.check('--hard-build')
+    restore: bool = p.check(['--back', '-b'])
+
+    first_arg: str = p.get_if(1, len(p) > 1, '')  # opzionale: solo per percorsi differenti dal path
+    second_arg: str = p.get_if(2, not p.check(['f', 'file', 'gui', 'history']), '')
+
+    action: list[list[str]] = [['apply', 'a'], ['back', 'b'], ['file', 'f'], ['gui'], ['history']]
+    linked_function: list = [
+        #lambda: apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build,
+        #                    backup=recover_backup),
+        #lambda: back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build,
+        #                     hard_build=hard_build),
+        #lambda: parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup,
+        #                   restore=restore),
+        lambda: print(filex.get_diff('/Users/didpul/Desktop/vulnbox/file_importante.txt', '/Users/didpul/Desktop/vulnbox/patch per file_importante.txt')),
+        lambda: print('ciao2'),
+        lambda: print('ciao3'),
+        lambda: print('ciao4'),
+        lambda: print('ciao5')
+    ]
+    p.action_param(0, action, linked_function)
