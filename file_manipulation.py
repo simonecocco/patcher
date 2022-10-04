@@ -5,6 +5,7 @@ class Filex:
     def __init__(self) -> None:
         pass
 
+    @staticmethod
     def get_diff(self, path_file_a: str, path_file_b: str) -> list[str] | None:
         """
         controlla e restituisce la differenza fra due file
@@ -24,4 +25,23 @@ class Filex:
                 new.append(line[1:].strip())
 
         return ['\n'.join(old), '\n'.join(new)]
+
+    @staticmethod
+    def overwrite_file(old_path_file: str, new_path_file: str, old_file_backup: bool = True) -> bool:
+        """
+        Sosituisce il vecchio file con uno nuovo e fa il backup del vecchio.
+        :param old_path_file: path del vecchio file da sovrascrivere
+        :param new_path_file: percorso del nuovo file che andrà a sovrascrivere il vecchio
+        :return True se il file ed il backup sono andati bene
+        """
+        pass #todo
+
+    @staticmethod
+    def backup_file(file_path: str) -> str | None:
+        """
+        Esegue il backup del file fornito
+        :param file_path percorso del file su cui fare il backup
+        :return stringa con il percorso del file fatto a backup, None nel caso il backup non venga fatto
+        """
+        pass #todo
 

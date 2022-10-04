@@ -3,8 +3,11 @@
 from params import Params
 import credits
 from file_manipulation import Filex
+import log
+import utils
 
 from os import getcwd
+from sys import exit
 
 '''
 tab_char = '\t'
@@ -162,6 +165,19 @@ def parse_file(path: str, docker_build: bool = True, hard_build: bool = False, b
 current_dir: str = getcwd() + '/'
 
 
+def apply_patch(old_path_file: str, new_path_file: str, do_backup: bool = True, ) -> None:
+    if not utils.is_valid_file(old_path_file):
+        log.error(f'Path non valido {old_path_file}')
+        exit(-1)
+    if not utils.is_valid_file(old_path_file):
+        log.error(f'Path non valido {new_path_file}')
+        exit(-1)
+
+    log.output(f'Sostituisco {old_path_file} con {new_path_file}')
+
+    if do_backup:
+        log.output(f'Eseguo il backup di {old_path_file} a {Filex.backup_file(old_path_file)}')
+
 # MAIN
 if __name__ == '__main__':
     filex: Filex = Filex()
@@ -171,8 +187,8 @@ if __name__ == '__main__':
     if p.check(['-h', '--help']):  # [-h, --help] mostra l'aiuto
         credits.print_help()
 
-    recover_backup: bool = p.check('--no-bkp')
-    docker_build: bool = p.check('--no-docker')
+    recover_backup: bool = not p.check('--no-bkp')
+    docker_build: bool = not p.check('--no-docker')
     hard_build: bool = p.check('--hard-build')
     restore: bool = p.check(['--back', '-b'])
 
@@ -187,7 +203,7 @@ if __name__ == '__main__':
         #                     hard_build=hard_build),
         #lambda: parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup,
         #                   restore=restore),
-        lambda: print(filex.get_diff('/Users/didpul/Desktop/vulnbox/file_importante.txt', '/Users/didpul/Desktop/vulnbox/patch per file_importante.txt')),
+        lambda:  # print(filex.get_diff('/Users/didpul/Desktop/vulnbox/file_importante.txt', '/Users/didpul/Desktop/vulnbox/patch per file_importante.txt')),
         lambda: print('ciao2'),
         lambda: print('ciao3'),
         lambda: print('ciao4'),
