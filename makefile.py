@@ -9,6 +9,7 @@ up:
     sudo docker-compose up --build -d
 down:
     sudo docker-compose down
+soft: build up
 hard: build down up
 log:
     sudo docker-compose logs
@@ -29,7 +30,14 @@ class Makefile:
             mkfile_tmp.write(makefile_content)
             mkfile_tmp.close()
 
-    def 
+    def __docker_up__(self) -> None:
+        pass
 
+    def __docker_down__(self) -> None:
+        pass
 
+    def docker_hardreboot(self) -> None:
+        pass
 
+    def docker_softreboot(self) -> None:
+        pass

@@ -5,8 +5,9 @@ import credits
 from file_manipulation import Filex
 import log
 import utils
+from makefile import Makefile
 
-from os import getcwd
+from os import getcwd, path
 from sys import exit
 
 '''
@@ -39,47 +40,6 @@ def dir_safe(dirpath: str, filepath: str) -> str:
         return dirpath
     else:
         return dirpath
-
-
-# esegue il backup del file
-def backup_file(path: str) -> None:
-    path_n: int = 0
-    while os.path.exists(f'{path}.bkp{path_n}'):
-        path_n += 1
-    call(['cp', path, path + f'.bkp{path_n}'])
-    print(f'new file {path}.bkp{path_n}')
-    if not os.path.exists(f'{path}.bkp{path_n}'):
-        print(f'Backup failed ({path})')
-        sys.exit(1)
-    print(Fore.YELLOW + f'Per tornare indietro usa\nback {path} {path_n}' + Fore.RESET)
-
-
-# applica la patch
-def apply_patch(path_orig: str, path_new_file: str, backup: bool = True, docker_build: bool = True, quiet: bool = False,
-                hard_build: bool = False) -> str:
-    print(f'patching {path_orig} with {path_new_file}')
-    validate(path_new_file, dir_allowed=False)
-    path_orig = dir_safe(path_orig, path_new_file)
-    diff: str = get_differences(path_orig, path_new_file)
-    risp: str = str(input(f"sei sicuro di voler applicare la patch? (y/n)\nGuarda le modifiche:\n{diff}\n")).strip()
-    if not ('y' in risp) and not ('Y' in risp):
-        print('Patch non applicata')
-        sys.exit(1)
-    print(path_orig)
-    backup_file(path_orig)
-    call(['cp' if backup else 'mv', path_new_file, path_orig])
-    makefile_path: str = path_orig.replace(current_dir, '') if current_dir in path_orig else path_orig
-    makefile_path = makefile_path.split('/')[0]
-    makefile_check(makefile_path)
-    if docker_build and not hard_build:
-        call(['make', '-C', makefile_path])
-    elif docker_build and hard_build:
-        call(['make', 'hard', '-C', makefile_path])
-    elif not quiet:
-        print('Usa ' + Fore.YELLOW + 'make' + Fore.RESET + ' per applicare la patch')
-    print('Patch applicata')
-    return makefile_path
-
 
 # torna indietro con le versioni
 def back2version(path: str, version: int, backup: bool = True, docker_build: bool = True,
@@ -162,10 +122,22 @@ def parse_file(path: str, docker_build: bool = True, hard_build: bool = False, b
         last_makefile_path = None
 '''
 
-current_dir: str = getcwd() + '/'
+
+def back2version(mkf: Makefile | None, file_path: str, version: int = -1, docker_build: bool = True, hard_build: bool = True) -> None
+    pass # todo
 
 
-def apply_patch(old_path_file: str, new_path_file: str, do_backup: bool = True, ) -> None:
+def apply_patch(mkf: Makefile | None, old_path_file: str, new_path_file: str, do_backup: bool = True, docker_build: bool = True, hard_build: bool = True) -> None:
+    """
+    todo
+    :param mkf:
+    :param old_path_file:
+    :param new_path_file:
+    :param do_backup:
+    :param docker_build:
+    :param hard_build:
+    :return:
+    """
     if not utils.is_valid_file(old_path_file):
         log.error(f'Path non valido {old_path_file}')
         exit(-1)
@@ -173,14 +145,26 @@ def apply_patch(old_path_file: str, new_path_file: str, do_backup: bool = True, 
         log.error(f'Path non valido {new_path_file}')
         exit(-1)
 
-    log.output(f'Sostituisco {old_path_file} con {new_path_file}')
-
     if do_backup:
         log.output(f'Eseguo il backup di {old_path_file} a {Filex.backup_file(old_path_file)}')
 
+    log.output(f'Sostituisco {old_path_file} con {new_path_file}')
+    Filex.overwrite_file(old_path_file, new_path_file, old_file_backup=False)
+
+    if mkf is not None and docker_build and hard_build:
+        log.output('Docker hard build', ec=True)
+        mkf.docker_hardreboot()
+    elif mkf is not None and docker_build and not hard_build:
+        log.output('Docker soft build', ec=True)
+        mkf.docker_softreboot()
+
+    log.output('Completato')
+
+
+current_dir: str = getcwd() + '/'
+
 # MAIN
 if __name__ == '__main__':
-    filex: Filex = Filex()
     p: Params = Params(min_len=1, help_function=credits.print_help)  # gestione dei parametri
     if not p.check(['-q', '--quiet']):  # [-q, --quiet] dice al programma di non stampare i crediti
         credits.print_credit()
@@ -191,9 +175,15 @@ if __name__ == '__main__':
     docker_build: bool = not p.check('--no-docker')
     hard_build: bool = p.check('--hard-build')
     restore: bool = p.check(['--back', '-b'])
+    preserve_patch: bool = p.check(['--preserve-patch', '-p'])  # con questa opzione attiva le patch non verranno cancellate ma rimarrà sempre il file
 
     first_arg: str = p.get_if(1, len(p) > 1, '')  # opzionale: solo per percorsi differenti dal path
     second_arg: str = p.get_if(2, not p.check(['f', 'file', 'gui', 'history']), '')
+
+    makefile: Makefile | None
+    if first_arg != '':
+        makefile_target: str = path.join(first_arg.replace(current_dir, '').split('/')[0], 'makefile')
+        makefile = Makefile(makefile_target)
 
     action: list[list[str]] = [['apply', 'a'], ['back', 'b'], ['file', 'f'], ['gui'], ['history']]
     linked_function: list = [
@@ -203,7 +193,7 @@ if __name__ == '__main__':
         #                     hard_build=hard_build),
         #lambda: parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup,
         #                   restore=restore),
-        lambda:  # print(filex.get_diff('/Users/didpul/Desktop/vulnbox/file_importante.txt', '/Users/didpul/Desktop/vulnbox/patch per file_importante.txt')),
+        lambda: apply_patch(makefile, first_arg, second_arg, recover_backup, docker_build, hard_build),
         lambda: print('ciao2'),
         lambda: print('ciao3'),
         lambda: print('ciao4'),

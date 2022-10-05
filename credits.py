@@ -2,7 +2,7 @@ from colorama import Fore
 from sys import exit
 
 
-VERSION: str = '1.2.1'
+VERSION: str = '2.0.0-alpha'
 
 
 def print_credit() -> None:

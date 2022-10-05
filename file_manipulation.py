@@ -45,3 +45,6 @@ class Filex:
         """
         pass #todo
 
+    @staticmethod
+    def restore_file(file_path: str, version: int) -> bool:
+        pass
