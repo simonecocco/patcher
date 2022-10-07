@@ -130,13 +130,12 @@ def back2version(mkf: Makefile | None, file_path: str, version: int = -1, docker
 def apply_patch(mkf: Makefile | None, old_path_file: str, new_path_file: str, do_backup: bool = True, docker_build: bool = True, hard_build: bool = True) -> None:
     """
     todo
-    :param mkf:
-    :param old_path_file:
-    :param new_path_file:
-    :param do_backup:
-    :param docker_build:
-    :param hard_build:
-    :return:
+    :param mkf: makefile path
+    :param old_path_file: vecchio file da sostituire
+    :param new_path_file: nuovo file che sostituirà il vecchio
+    :param do_backup: deve fare il backup del vecchio file?
+    :param docker_build: fai il build di docker dopo finito di rimpiazzare?
+    :param hard_build: deve fare un hard reboot del container?
     """
     if not utils.is_valid_file(old_path_file):
         log.error(f'Path non valido {old_path_file}')
@@ -147,8 +146,12 @@ def apply_patch(mkf: Makefile | None, old_path_file: str, new_path_file: str, do
 
     old_diff: str
     new_diff: str
-    old_diff, new_diff = Filex.get_diff(old_path_file, new_path_file)
-    log.diff_output(old_path_file, old_diff, new_path_file, new_diff)
+    tmp: list[str] | None = Filex.get_diff(old_path_file, new_path_file)
+    if tmp is not None:
+        old_diff, new_diff = tmp
+        log.diff_output(old_path_file, old_diff, new_path_file, new_diff)
+    else:
+        log.warning('I file sono uguali')
     risp: str
     if (risp := input('Vuoi applicare la patch? [Y/n] ')) != 'Y':
         log.output('Annullato. Modifiche non applicate.', ec=True)
@@ -191,7 +194,7 @@ if __name__ == '__main__':
 
     makefile: Makefile | None
     if first_arg != '':
-        makefile_target: str = path.join(first_arg.replace(current_dir, '').split('/')[0], 'makefile')
+        makefile_target: str = path.join('/'.join(path.relpath(first_arg, current_dir).split('/')[:-1]), 'makefile')
         makefile = Makefile(makefile_target)
 
     action: list[list[str]] = [['apply', 'a'], ['back', 'b'], ['file', 'f'], ['gui'], ['history']]

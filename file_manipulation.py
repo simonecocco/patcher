@@ -61,7 +61,7 @@ class Filex:
             elif line.startswith('>'):
                 new.append(line[1:].strip())
 
-        return ['\n'.join(old), '\n'.join(new)]
+        return ['\n'.join(old), '\n'.join(new)] if len(old) > 0 or len(new) > 0 else None
 
     @staticmethod
     def overwrite_file(old_path_file: str, new_path_file: str, old_file_backup: bool = True, preserve_new_file: bool = False) -> bool:

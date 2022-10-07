@@ -1,8 +1,7 @@
 import os
 import utils
 
-makefile_content: str = '''
-all: build up
+makefile_content: str = '''all: build up
 build:
     sudo docker-compose build
 up:
