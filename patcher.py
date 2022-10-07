@@ -123,7 +123,7 @@ def parse_file(path: str, docker_build: bool = True, hard_build: bool = False, b
 '''
 
 
-def back2version(mkf: Makefile | None, file_path: str, version: int = -1, docker_build: bool = True, hard_build: bool = True) -> None
+def back2version(mkf: Makefile | None, file_path: str, version: int = -1, docker_build: bool = True, hard_build: bool = True) -> None:
     pass # todo
 
 
@@ -141,15 +141,24 @@ def apply_patch(mkf: Makefile | None, old_path_file: str, new_path_file: str, do
     if not utils.is_valid_file(old_path_file):
         log.error(f'Path non valido {old_path_file}')
         exit(-1)
-    if not utils.is_valid_file(old_path_file):
+    if not utils.is_valid_file(new_path_file):
         log.error(f'Path non valido {new_path_file}')
         exit(-1)
+
+    old_diff: str
+    new_diff: str
+    old_diff, new_diff = Filex.get_diff(old_path_file, new_path_file)
+    log.diff_output(old_path_file, old_diff, new_path_file, new_diff)
+    risp: str
+    if (risp := input('Vuoi applicare la patch? [Y/n] ')) != 'Y':
+        log.output('Annullato. Modifiche non applicate.', ec=True)
+        exit(0)
 
     if do_backup:
         log.output(f'Eseguo il backup di {old_path_file} a {Filex.backup_file(old_path_file)}')
 
     log.output(f'Sostituisco {old_path_file} con {new_path_file}')
-    Filex.overwrite_file(old_path_file, new_path_file, old_file_backup=False)
+    Filex.overwrite_file(old_path_file, new_path_file, old_file_backup=False, preserve_new_file=True)
 
     if mkf is not None and docker_build and hard_build:
         log.output('Docker hard build', ec=True)

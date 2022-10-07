@@ -24,7 +24,7 @@ class Makefile:
         :param service_path path del servizio
         :param create_if_not_exist 
         """
-        self.service_mf_path: str = os.path.join(service_path, 'makefile')
+        self.service_mf_path: str = service_path
         if not utils.is_valid_file(self.service_mf_path):
             mkfile_tmp = open(self.service_mf_path, 'w')
             mkfile_tmp.write(makefile_content)

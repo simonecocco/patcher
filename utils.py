@@ -11,9 +11,9 @@ def is_valid_file(file_path: str, is_file: bool=True, readable: bool=True):
     :return: ritorna True se soddisfa le condizioni specificate (e soprattutto che esista)
     """
     exist: bool = os.path.exists(file_path)
-    type: bool = not is_file or os.path.isfile(file_path)
-    readable: bool = not is_file or not readable or open(file_path, 'r').readable()
-    return exist and type and readable
+    type: bool = not is_file or os.path.isfile(file_path) if exist else False
+    can_read: bool = not is_file or not readable or open(file_path, 'r').readable() if exist else False
+    return type and can_read
 
 
 def call_process(cmd: str, params: list[str]=[]) -> list[str]:
