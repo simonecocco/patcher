@@ -4,6 +4,18 @@
 # A cosa serve?
 Questo file semplifica la gestione delle patch dei servizi. Esso permette di patchare uno o più file per poi ritornare indietro con le versioni.
 
+## Installazione
+
+```sh
+python3 -m pip install -r requirements.txt
+```
+
+## Esecuzione
+
+```sh
+cd api
+python3 -m flask run
+```
 # Come si usa?
 Il file deve essere posizonato nella directory home dove son presenti i servizi delle AD
 
