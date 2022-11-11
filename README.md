@@ -9,54 +9,58 @@ Il file deve essere posizonato nella directory home dove son presenti i servizi 
 
 Per invocarlo si usa `./patcher.py` o `python3 patcher.py`.
 ```Shell
-python3 patcher.py AZIONI argomento1 argomento2 OPZIONI
+python3 patcher.py args
 ```
 
 # Azioni disponibili
-## Patch di un file (`apply` o `a`)
-```Shell
-python3 patcher.py a /percorso/per/il/file nuovo_file
-```
+## Configurazione di servizi
+Per facilitare la scrittura, è possibile scrivere degli alias per ogni servizio.
 
-> esempio: `python3 patcher.py a CyberUni/examnotes/Dockerfile new_dockerfile`
+Per fare ciò si può usare `python3 patcher.py configure` per fare sì che il wizard esegua il tutto automaticamente o passare come parametri gli alias in modo da farlo in modo automatico: `python3 patcher.py configure nome1=percorso_cartella1 nome2=percorso_cartella2 ...`.
+
+## Gestione delle patch (o patch multiple)
+
+Il programma patcher, prende diversi argomenti dove ognuno rappresenta un file da _patchare_.
+
+Esempio: `python3 patcher.py percorso_file1=patch_to_file1 percorso_file2=patch_to_file2 ...`
+
+Al posto dei percorsi assoluti o relativi, è consigliato definire degli alias tramite `patcher.py configure`, in modo da sostituire i percorsi dei file con dei nomi più mnemonici.
+
+Esempio `python3 patcher.py nome1/file1=patch_to_file1 nome2/file2=patch_to_file1 ...`
+
+Quando un file viene modificato è possibile ritornare indietro ad una versione precedente, specificando il numero di versione richiesto, o andando a ritroso con numeri < 0.
+
+Esempio: `python3 patcher.py nome1/file1=-1 nome2/file2=0 ...`
+> Imposta il file presente nel percorso `nome1/file1` alla versione precedente alla sua ultima patch, e `nome2/file2` alla sua versione originale
+
+Ogni volta che vengono eseguite delle patch, è possibile portare indietro tutto il servizio ad una specifica versione come con un singolo file `patcher.py nome1=-1 ...` (_il servizio viene portato alla sua versione precedente_)
+
+E' inoltre possibile, tenere una specifica versione di un file o impostare una versione separata di esso.
+
+Esempio: `python3 patcher.py nome1=-1 nome1/file1 nome1/file2=0`
+> Tutto il servizio denominato nome1 viene portato ad una sua versione precedente;
 >
-> Questo esempio prende `new_dockerfile` e lo piazza dentro `CyberUni/examnotes` facendo il backup del precedente Dockerfile.
-
-## Versione precedente di un file (`back` o `b`)
-```Shell
-python3 patcher.py b percorso/per/il/file versione
-```
-
-> esempio: `python3 patcher.py b CyberUni/examnotes/Dockerfile -1`
+> il file1 presente nel servizio nome1 viene mantenuto inalterato;
 >
-> Questo esempio sostituisce `CyberUni/examnotes/Dockerfile` con la sua versione precedente.
+> e file2 presente nel servizio nome1 viene portato alla versione 0
 
-> esempio 2: `python3 patcher.py b CyberUni/examnotes/Dockerfile 0`
->
-> Questo esempio sostituisce `CyberUni/examnotes/Dockerfile` con la sua versione 0.
+## Utilizzo di un file
+E' possibile utilizzare un file per passare gli argomenti a patcher.
 
-## Patch multiple (`file` o `f`)
-Considerando un semplice file .txt
-```Plaintext
-/percorso/per/file1 file1_patch
-/percorso/per/file2 file2_patch
-
-/percorso2/file1 altro_file_patch
+Il file deve avere una sintassi tipo (i commenti sono espressi con il #):
+```
+percorso_file=versione
+percorso_file=nuovo_file
+nome1=versione
+...
 ```
 
-Il file di esempio qua sopra contiene varie istruzioni di patch (percorso file originale e percorso nuovo file).
-
-Quando vengono patchati più servizi è necessario dividerli con una newline vuota in modo che il programma riconosca quando due servizi diversi vengono modificati.
-
-Dopo creato il semplice file è possibile applicarlo con
-
-```Shell
-python3 patcher.py f file.txt
-```
+Per passare un file di istruzioni è necessario specificare una delle opzioni `-f` o `--file`.
 
 # Opzioni disponibili
 * `-q`: non mostra i crediti e la versione
 * `--no-bkp`: serve a non far fare il backup della patch corrente in caso di ripristino
 * `--no-docker`: una volta finita l'operazione con i file non eseguirà la compilazione con docker
 * `--hard-build`: distrugge il container e lo riporta su (da utilizzare solo in caso di necessità). Per utilizzarla è necessario non sia presente `--no-docker`
-* `--back` o `-b`: usabile solo con file, serve per annullare un gruppo di patch (uguale a b \[files\] -1)
+* `-v` o `--verbose`: mostra un output dettagliato
+* `-y`: non chiede l'autorizzazione all'utente
