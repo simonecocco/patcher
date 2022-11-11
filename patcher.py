@@ -220,7 +220,7 @@ restore: bool = '--back' in sys.argv or '-b' in sys.argv
 action: str = sys.argv[1]
 first_arg: str = sys.argv[2]
 second_arg: str = ''
-if if action != 'f' and action != 'file':
+if action != 'f' and action != 'file':
 	second_arg = sys.argv[3]
 
 if action == 'apply' or action == 'a':
