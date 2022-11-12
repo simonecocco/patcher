@@ -4,7 +4,6 @@ import re
 from sys import exit
 from params import Params
 from utils import is_valid_file
-from core import Core
 import credits
 from service import *
 
