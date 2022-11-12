@@ -36,7 +36,7 @@ def __getfromdocker__(path: str) -> list[Service]:
         ports = ports.split(':')[1]
         return ports.split('->')
 
-    out, err = call_process('docker', 'ps', '--format', 'table ID:{{.ID}},NAME:{{.Image}},STATUS:{{.Status}},PORTS:{{.Ports}}')
+    out, err = call_process('docker', ['ps', '--format', 'table ID:{{.ID}},NAME:{{.Image}},STATUS:{{.Status}},PORTS:{{.Ports}}'])
     if len(err) > 0:
         log.error('Per configurare i processi è automaticamente è necessario essere utente root.')
         exit(1)
@@ -50,9 +50,6 @@ def __getfromdocker__(path: str) -> list[Service]:
         detail = detail[0]
         services_list.append(Service(None, detail[1], *get_ports(detail[3])))
     return services_list
-
-
-
 
 
 def __saveservices__(path: str, services: list[Service]) -> None:
