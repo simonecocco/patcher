@@ -7,28 +7,29 @@ from sys import exit
 from params import Params
 from utils import is_valid_file
 from core import Core
+import credits
+from service import *
 
-p: Params = Params()
+p: Params = Params(help_description=credits.help, exit_if_no_args=False)
+interactive: bool = not '-y' in p
+verbose: bool = ['-v', '--verbose'] in p
+quiet: bool = '-q' in p
 
-def get_config() -> None:
-    global p
-    if len(p) == 1:
-        serv: dict = {}
-        try:
-            while True:
-                path: str
-                name: str
-                path = input('Path: ')
-                name = input('Alias: ')
-                serv[name] = re.sub(r'[\'\"]', '', path)
-        except:
-            config.create(serv)
-    else:
-        for serv in p.__params__[1:]:
-            name, path = serv.split('=')
-            serv[name] = re.sub(r'[\'\"]', '', path)
-        config.create(serv)
-    print('\nConfig file creato')
+# ---
+
+if len(p) == 0:
+    services_list: list[Service] = get_services(p.__scriptpath__)
+    exit(0)
+
+# ---
+
+if 'configure' in p:
+    for service in services_list:
+        print(f'Servizio:{service.name}, path:{service.path}, porta(int, out):{service.port}')
+        tmp: str = input('imposta alias per il servizio: (o vuoto per skip) ')
+        if len(tmp) > 0:
+            service.alias = tmp
+    __saveservices__(services_list)
     exit(0)
 
 # ---
@@ -42,9 +43,7 @@ if (file_cmd:=['-f', '--file']) in p:
     f = open(file_name, 'r')
     instructions: list[str] = [instr for x in f.readlines() if len(instr:=x.strip()) > 2]
     f.close()
-    Core(instructions, verbose=['-v', '--verbose'] in p, interactive=not '-y' in p)
-elif 'configure' in p:  # configura i servizi
-    get_config()
+    Core(instructions, verbose=['-v', '--verbose'] in p, interactive=)
 else:
     Core([i for i in p.__params__], verbose=['-v', '--verbose'] in p, interactive=not '-y' in p)
 
