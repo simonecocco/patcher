@@ -55,7 +55,7 @@ def __getfromdocker__(path: str) -> list[Service]:
 def __saveservices__(path: str, services: list[Service]) -> None:
     tmp: list[dict] = [{'directory':s.path, 'name':s.name, 'in_port':str(s.port[0]), 'out_port':str(s.port[1]), 'alias':s.alias} for s in services]
     with open(path, 'w') as config:
-        config.write(dumps(services))
+        config.write(dumps(tmp))
         config.close()
 
 def get_services(path: str) -> list[Service]:
