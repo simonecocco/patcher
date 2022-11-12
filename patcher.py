@@ -33,18 +33,4 @@ if 'configure' in p:
     exit(0)
 
 # ---
-
-# prendi da file?
-if (file_cmd:=['-f', '--file']) in p:
-    file_name: str = p[file_cmd]
-    if not is_valid_file(file_name):
-        print('File non disponibile')
-        exit(-1)
-    f = open(file_name, 'r')
-    instructions: list[str] = [instr for x in f.readlines() if len(instr:=x.strip()) > 2]
-    f.close()
-    Core(instructions, verbose=['-v', '--verbose'] in p, interactive=)
-else:
-    Core([i for i in p.__params__], verbose=['-v', '--verbose'] in p, interactive=not '-y' in p)
-
-#TODO parte di docker
+#TODO
