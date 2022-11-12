@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 
 import re
-import config
 from sys import exit
-
 from params import Params
 from utils import is_valid_file
 from core import Core
