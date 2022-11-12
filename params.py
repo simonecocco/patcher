@@ -2,10 +2,11 @@ from sys import argv, exit
 EXIT_NO_ARGS: int = 65
 
 class Params:
-    def __init__(self, help_description: str = '', call_help_if_zero: bool = True, help_options: list[str] = ['-h', '--help']) -> None:
+    def __init__(self, help_description: str = '', call_help_if_zero: bool = True, help_options: list[str] = ['-h', '--help'], exit_if_no_args: bool = True) -> None:
+        self.__scriptpath__: str = argv[0].replace('patcher.py', '')
         self.__params__: list[str] = argv[1:].copy()
         self.__help__: str = help_description
-        if len(self.__params__) == 0:
+        if len(self.__params__) == 0 and exit_if_no_args:
             if call_help_if_zero:
                 self.help(exit_after=False)
             exit(EXIT_NO_ARGS)
