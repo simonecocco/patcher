@@ -1,5 +1,5 @@
 from json import dumps, loads
-from os import path
+import os
 from utils import is_valid_file, call_process
 import log
 from sys import exit
@@ -62,7 +62,7 @@ def __saveservices__(path: str, services: list[Service]) -> None:
         config.close()
 
 def get_services(path: str) -> list[Service]:
-    script_path: str = path.join(path, JSON_FILE_NAME)
+    script_path: str = os.path.join(path, JSON_FILE_NAME)
     tmp: list[Service] = __restorefromjson__(script_path) if is_valid_file(script_path) else __getfromdocker__(path)
     __saveservices__(script_path, tmp)
     return tmp
