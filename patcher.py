@@ -31,3 +31,5 @@ if 'configure' in p:
 
 # ---
 #TODO
+
+#opzione checkpoint

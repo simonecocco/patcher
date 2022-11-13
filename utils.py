@@ -1,5 +1,6 @@
 import os
 from subprocess import call, Popen, PIPE
+from log import error
 
 
 def is_valid_file(file_path: str, is_file: bool=True, readable: bool=True):
@@ -26,3 +27,17 @@ def call_process(cmd: str, params: list[str]=[]) -> list[str]:
     _process: Popen = Popen([cmd] + params, stdout=PIPE, stderr=PIPE)
     _stdout, _stderr = _process.communicate()
     return [_stdout.decode('utf-8'), _stderr.decode('utf-8')]
+
+
+def do_checkpoint_backup(service_path: str) -> None:
+    """
+    Crea una copia della cartella al di fuori del percorso specificato
+    copiando tutta la struttura presente. Utile in caso di eliminazione non programmata.
+    """
+    if not (os.path.exists(service_path) and os.path.isdir(service_path)):
+        error(f'{service_path} non valida')
+        exit(1)
+    prefix: str = '/'.join(service_path.split('/')[:-1])
+    backup_path: str = os.path.join(prefix ,f'.{service_path}_bkp')
+    call_process('cp', ['-r'. service_path, backup_path])
+    
