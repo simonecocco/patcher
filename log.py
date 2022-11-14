@@ -1,12 +1,16 @@
 from turtle import title
 from colorama import Fore, Back
 
+verbose: bool = True
+
 
 def __template__(log_msg: str , msg: str, color: str = '') -> None:
     print(color + f'Log ({log_msg}): {msg}' + Fore.RESET)
 
 
 def output(msg: str, ec: bool = False) -> None:
+    if not verbose:
+        return
     if ec:
         print(Back.BLUE + msg + Back.RESET)
     else:

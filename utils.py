@@ -37,9 +37,13 @@ def do_checkpoint_backup(service_path: str, do_not_overwrite: bool = True) -> No
     if not (os.path.exists(service_path) and os.path.isdir(service_path)):
         error(f'{service_path} non valida')
         exit(1)
-    prefix: str = '/'.join(service_path.split('/')[:-1])
-    backup_path: str = os.path.join(prefix ,f'.{service_path}_bkp')
+    prefix: str = '/'.join((tmp := service_path.split('/'))[:-1])
+    service_name: str = tmp[-1]
+    backup_path: str = os.path.join(prefix ,f'.{service_name}_bkp')
     if os.path.exists(backup_path) and do_not_overwrite:
-        return 
-    call_process('cp', ['-r'. service_path, backup_path])
+        return
+    elif not do_not_overwrite:
+        call_process('rm', ['-rf', backup_path])
+    
+    call_process('cp', ['-r', service_path, backup_path, '--preserve=mode,ownership,timestamps'])
     

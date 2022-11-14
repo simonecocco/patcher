@@ -13,12 +13,23 @@ class Service:
         self.name: str = name
         self.alias: str = name if alias == '' or alias is None else alias
         self.port: tuple[int, int] = (int(in_port), int(out_port))
+        self.instr: list[str] = []
 
     def service_copy(self, do_not_overwrite: bool = True) -> None:
         utils.do_checkpoint_backup(self.path, do_not_overwrite)
 
     def restore_bkp(self, target_version: int, skip_files: list[str], interactive: bool = True) -> None:
-        pass
+        prefix: str = '/'.join(self.path.split('/')[:-1])
+        backup_path: str = os.path.join(prefix ,f'.{self.path}_bkp')
+        if len(skip_files) == 0:
+            utils.call_process('cp', ['-r', backup_path, self.path])
+        else:
+            utils.call_process('mkdir', ['-p', '/tmp/patcher_files'])
+            skip_files = list(map(lambda f: f.replace(self.path), skip_files))
+        #TODO
+
+    def execute_instruction(self, verbose: bool = True, interactive: bool = True, backup: bool = True, docker_update: bool = True, docker_hard_reboot: bool = False) -> None:
+        pass #TODO
 
     def __str__(self) -> str:
         return f'{self.name} ({self.alias}) located at: {self.path}, listen in: {self.port}'
@@ -48,6 +59,7 @@ def __getpossibleservices__(path: str) -> list[str]:
     return res
 
 def __getfromdocker__(path: str) -> list[Service]:
+    print(path)
     def get_ports(ports: str) -> list[str]:
         ports = ports.split('/')[0]
         ports = ports.split(':')[1]
@@ -66,7 +78,7 @@ def __getfromdocker__(path: str) -> list[Service]:
             continue
         detail = detail[0]
         services_list.append(Service(None, detail[1], *get_ports(detail[3])))
-    direct: list[str] = __getpossibleservices__('/'.join(path.split('/')[:-1]))
+    direct: list[str] = __getpossibleservices__('/'.join(path.split('/')[:-1]) if path.endswith('patcher') else path)
     print('Services:')
     for i, serv in enumerate(services_list):
         service_name: str = serv.name.lower()
@@ -88,8 +100,42 @@ def __saveservices__(path: str, services: list[Service]) -> None:
         config.write(dumps(tmp))
         config.close()
 
-def get_services(path: str, update: bool = False) -> list[Service]:
-    script_path: str = os.path.join(path, JSON_FILE_NAME)
-    tmp: list[Service] = __restorefromjson__(script_path) if is_valid_file(script_path) and not update else __getfromdocker__(path)
+def get_services(current_dir: str, script_path: str, update: bool = False) -> list[Service]:
+    script_path: str = os.path.join(script_path, JSON_FILE_NAME)
+    tmp: list[Service] = __restorefromjson__(script_path) if is_valid_file(script_path) and not update else __getfromdocker__(current_dir)
     __saveservices__(script_path, tmp)
     return tmp
+
+def search_for_service(target: str, services: list[Service]) -> Service:
+    if '/' in services and os.path.exists(target): #è un percorso relativo o assoluto
+        if os.path.isdir(target):
+            log.error(f'Directory non consentite ({target})')
+            exit(1)
+        absolute: str = os.path.abspath(target)
+        for s in services:
+            common_path: str = os.path.commonprefix([absolute, s.path])
+            if common_path == s.path:
+                return s
+    elif '/' in services and not os.path.exists(target): #è un percorso che contiene alias
+        prefix: str = target.split('/')[0]
+        for s in services:
+            if prefix.lower() in s.name.lower() or prefix.lower() == s.alias.lower():
+                return s
+    elif '/' not in services and os.path.exists(target): #è un file relativo o una directory relativa
+        absolute: str = os.path.abspath(target)
+        if os.path.isdir(absolute):
+            for s in services:
+                if absolute == s.path:
+                    return s
+        else:
+            for s in services:
+                common_path: str = os.path.commonprefix([absolute, s.path])
+                if common_path == s.path:
+                    return s
+    else: #se non esiste nè è un percorso -> probabili un nome servizio o un file inesistente
+        prefix: str = target.split('/')[0]
+        for s in services:
+            if prefix.lower() in s.name.lower() or prefix.lower() == s.alias.lower():
+                return s
+
+    return None
