@@ -17,6 +17,9 @@ verbose: bool = ['-v', '--verbose'] in p
 log.verbose = verbose
 quiet: bool = '-q' in p
 services_list: list[Service]
+do_backup: bool = not '--no-bkp' in p
+docker_update: bool = not '--no-docker' in p
+docker_hard: bool = '--hard-build' in p
 
 # ---
 
@@ -78,4 +81,6 @@ for instr in p.__params__:
         exit(1)
     serv.instr.append((param1, param2))
     listed_services.append(serv)
-    #TODO
+
+for serv in listed_services:
+    serv.execute_instruction(verbose, interactive, do_backup, docker_update, docker_hard)
