@@ -4,6 +4,7 @@ from utils import is_valid_file, call_process
 import log
 from sys import exit
 import re
+import makefile
 
 class Service:
     def __init__(self, directory: str, name: str, in_port: str, out_port: str, alias: str = '') -> None:
@@ -30,6 +31,12 @@ def __restorefromjson__(path: str) -> list[Service]:
     services_list: list[Service]
     return [Service(**service) for service in loads(tmp)]
 
+def __getpossibleservices__(path: str) -> list[str]:
+    content: list[str] = os.listdir(path if len(path) > 0 else '.')
+    content = map(lambda x: os.path.join(path, x), content)
+    res: list[str] = filter(lambda x: os.path.isdir(x) and os.path.exists(os.path.join(x, 'docker-compose.yml')), content)
+    return res
+
 def __getfromdocker__(path: str) -> list[Service]:
     def get_ports(ports: str) -> list[str]:
         ports = ports.split('/')[0]
@@ -49,6 +56,9 @@ def __getfromdocker__(path: str) -> list[Service]:
             continue
         detail = detail[0]
         services_list.append(Service(None, detail[1], *get_ports(detail[3])))
+    direct: list[str] = __getpossibleservices__(path)
+    for i, serv in enumerate(services_list):
+        
     return services_list
 
 
