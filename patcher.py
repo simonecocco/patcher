@@ -6,6 +6,8 @@ from params import Params
 from utils import is_valid_file
 import credits
 from service import *
+from makefile import Makefile
+from os.path import join
 
 p: Params = Params(help_description=credits.help, exit_if_no_args=False)
 interactive: bool = not '-y' in p
@@ -15,7 +17,9 @@ quiet: bool = '-q' in p
 # ---
 
 if len(p) == 0:
-    services_list: list[Service] = get_services(p.__scriptpath__)
+    services_list: list[Service] = get_services(p.__scriptpath__, update=True)
+    for service in services_list:
+        Makefile(service.path)
     exit(0)
 
 # ---

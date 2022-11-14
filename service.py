@@ -19,6 +19,12 @@ class Service:
     def restore_bkp(target_version: int, skip_files: list[str], interactive: bool = True) -> None:
         pass
 
+    def __str__(self) -> str:
+        return f'{self.name} ({self.alias}) located at: {self.path}, listen in: {self.port}'
+
+    def __repr___(self) -> str:
+        return self.__str__() 
+
     #TODO
 
 JSON_FILE_NAME: str = 'services.json'
@@ -33,8 +39,8 @@ def __restorefromjson__(path: str) -> list[Service]:
 
 def __getpossibleservices__(path: str) -> list[str]:
     content: list[str] = os.listdir(path if len(path) > 0 else '.')
-    content = map(lambda x: os.path.join(path, x), content)
-    res: list[str] = filter(lambda x: os.path.isdir(x) and os.path.exists(os.path.join(x, 'docker-compose.yml')), content)
+    content = list(map(lambda x: os.path.join(path, x), content))
+    res: list[str] = list(filter(lambda x: os.path.isdir(x) and os.path.exists(os.path.join(x, 'docker-compose.yml')), content))
     return res
 
 def __getfromdocker__(path: str) -> list[Service]:
@@ -56,10 +62,20 @@ def __getfromdocker__(path: str) -> list[Service]:
             continue
         detail = detail[0]
         services_list.append(Service(None, detail[1], *get_ports(detail[3])))
-    direct: list[str] = __getpossibleservices__(path)
+    direct: list[str] = __getpossibleservices__('/'.join(path.split('/')[:-1]))
+    print('Services:')
     for i, serv in enumerate(services_list):
-        
-    return services_list
+        service_name: str = serv.name.lower()
+        for d in direct:
+            actual_name: str = d.split('/')[-1].lower()
+            if actual_name in service_name:
+                services_list[i].path = d
+                services_list[i].alias = actual_name
+                break
+        else:
+            continue
+        print(serv)
+    return list(filter(lambda ser: ser.path is not None, services_list))
 
 
 def __saveservices__(path: str, services: list[Service]) -> None:
@@ -68,8 +84,8 @@ def __saveservices__(path: str, services: list[Service]) -> None:
         config.write(dumps(tmp))
         config.close()
 
-def get_services(path: str) -> list[Service]:
+def get_services(path: str, update: bool = False) -> list[Service]:
     script_path: str = os.path.join(path, JSON_FILE_NAME)
-    tmp: list[Service] = __restorefromjson__(script_path) if is_valid_file(script_path) else __getfromdocker__(path)
+    tmp: list[Service] = __restorefromjson__(script_path) if is_valid_file(script_path) and not update else __getfromdocker__(path)
     __saveservices__(script_path, tmp)
     return tmp
