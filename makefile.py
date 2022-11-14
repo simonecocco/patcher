@@ -29,14 +29,17 @@ class Makefile:
             mkfile_tmp.write(makefile_content)
             mkfile_tmp.close()
 
+    def __callmake__(self, target) -> None:
+        utils.call_process('make', ['-C', self.service_mf_path, target])
+
     def __docker_up__(self) -> None:
-        pass
+        self.__callmake__('up')
 
     def __docker_down__(self) -> None:
-        pass
+        self.__callmake__('down')
 
     def docker_hardreboot(self) -> None:
-        pass
+        self.__callmake__('hard')
 
     def docker_softreboot(self) -> None:
-        pass
+        self.__callmake__('soft')
