@@ -4,7 +4,8 @@ from utils import is_valid_file, call_process
 import log
 from sys import exit
 import re
-import makefile
+from makefile import Makefile
+import utils
 
 class Service:
     def __init__(self, directory: str, name: str, in_port: str, out_port: str, alias: str = '') -> None:
@@ -13,10 +14,10 @@ class Service:
         self.alias: str = name if alias == '' or alias is None else alias
         self.port: tuple[int, int] = (int(in_port), int(out_port))
 
-    def service_copy() -> int: #ritorna la versione
-        pass
+    def service_copy(self, do_not_overwrite: bool = True) -> None:
+        utils.do_checkpoint_backup(self.path, do_not_overwrite)
 
-    def restore_bkp(target_version: int, skip_files: list[str], interactive: bool = True) -> None:
+    def restore_bkp(self, target_version: int, skip_files: list[str], interactive: bool = True) -> None:
         pass
 
     def __str__(self) -> str:
@@ -24,6 +25,9 @@ class Service:
 
     def __repr___(self) -> str:
         return self.__str__() 
+
+    def get_makefile(self) -> Makefile:
+        return Makefile(os.path.join(self.path, 'makefile'))
 
     #TODO
 

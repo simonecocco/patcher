@@ -24,7 +24,7 @@ class Makefile:
         :param create_if_not_exist 
         """
         self.service_mf_path: str = service_path if service_path.endswith('makefile') else os.path.join(service_path, 'makefile')
-        print(f'Using {self.service_mf_path} as makefile')
+        #print(f'Using {self.service_mf_path} as makefile')
         if not utils.is_valid_file(self.service_mf_path):
             mkfile_tmp = open(self.service_mf_path, 'w')
             mkfile_tmp.write(makefile_content)
