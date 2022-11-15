@@ -56,7 +56,7 @@ if 'checkpoint' in p:
         for s in services_list:
             if t in s.name or t == s.alias:
                 print(f'Checkpoint di {s.name} ({s.alias})')
-                s.service_copy(do_not_overwrite=False)
+                s.service_copy()
     exit(0)
 
 # ---

@@ -29,7 +29,7 @@ def call_process(cmd: str, params: list[str]=[]) -> list[str]:
     return [_stdout.decode('utf-8'), _stderr.decode('utf-8')]
 
 
-def do_checkpoint_backup(service_path: str, do_not_overwrite: bool = True) -> None:
+def do_checkpoint_backup(service_path: str) -> None:
     """
     Crea una copia della cartella al di fuori del percorso specificato
     copiando tutta la struttura presente. Utile in caso di eliminazione non programmata.
@@ -39,11 +39,14 @@ def do_checkpoint_backup(service_path: str, do_not_overwrite: bool = True) -> No
         exit(1)
     prefix: str = '/'.join((tmp := service_path.split('/'))[:-1])
     service_name: str = tmp[-1]
-    backup_path: str = os.path.join(prefix ,f'.{service_name}_bkp')
-    if os.path.exists(backup_path) and do_not_overwrite:
-        return
-    elif not do_not_overwrite:
-        call_process('rm', ['-rf', backup_path])
+    count: int = 0
+    backup_path: str
+    while True:
+        backup_path = os.path.join(prefix ,f'.{service_name}_bkp{count}')
+        if os.path.exists(backup_path):
+            count += 1
+        else:
+            break
     
     call_process('cp', ['-r', service_path, backup_path, '--preserve=mode,ownership,timestamps'])
     

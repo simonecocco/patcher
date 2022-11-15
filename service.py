@@ -16,9 +16,16 @@ class Service:
         self.port: tuple[int, int] = (int(in_port), int(out_port))
         self.instr: list[str] = []
 
-    def service_copy(self, do_not_overwrite: bool = True) -> None:
+    def service_copy(self) -> None:
         # todo da aggiornare con le versioni dei checkpoint
-        utils.do_checkpoint_backup(self.path, do_not_overwrite)
+        utils.do_checkpoint_backup(self.path)
+
+    def __getbackupdirs__(self) -> list:
+        output, err = call_process('ls', ['-a', '/'.join(self.path.split('/')[:-1])])
+        output = output.split('\n')
+        backup_list: list = list(filter(lambda n: f'.{self.alias}_bkp' in n.lower(), output))
+        backup_list.sort()
+        return backup_list
 
     def restore_bkp(self, target_version: int, skip_files: list[str], interactive: bool = True, strict: bool = True) -> None:
         if interactive:
@@ -40,7 +47,15 @@ class Service:
             call_process('mkdir', ['-p', absolute_backup_path])
             call_process('cp', [sf, tmp:=os.path.join(dirname, relative_path), '--preserve=mode,ownership,timestamps'])
             print(f'Salvo {tmp}')
-        
+        # ripristino la cartella
+        dirs: list[str] = self.__getbackupdirs__()
+        target: str = os.path.join('/'.join(self.path.split('/')[:-1]), dirs[target_version])
+        call_process('cp', [target, '-T', self.path, '--preserve=mode,ownership,timestamps'])
+        # ripristino i file dal tmp
+        call_process('cp', [dirname, '-T', self.path, '--preserve=mode,ownership,timestamps'])
+        # elimino i file ridondanti
+        call_process('rm', ['-rf', dirname])
+        log.output('Completato')
 
 
     def execute_instruction(self, interactive: bool = True, backup: bool = True, docker_update: bool = True, docker_hard_reboot: bool = False, strict: bool = False) -> None:
@@ -63,8 +78,89 @@ class Service:
         tmp = list(filter(lambda t: t[0] == self.path or t[0][:-1] == self.path, file_to_restore))
         if len(tmp) > 0: # ripristino dal checkpoint del servizio
             self.restore_bkp(tmp[0][1], file_to_keep, interactive, strict)
-            file_to_restore.remove(tmp)
-        #TODO
+            file_to_restore = list(filter(lambda t: t[0] != tmp[0][0] and t[1] != tmp[0][1], file_to_restore))
+        
+        def get_possibilities(f: str) -> list[str]:
+            prefix: str = '/'.join(f.split('/')[:-1])
+            file_name: str = f.split('/')[-1]
+            output, err = call_process('ls', ['-a', prefix])
+            output = output.split('\n')
+            backup_list: list = list(filter(lambda n: f'.{file_name}_bkp' in n.lower(), output))
+            backup_list.sort()
+            return backup_list
+
+        def get_diff(file1: str, file2: str) -> None:
+            output, error = call_process('diff', ['-y', file1, file2])
+            print(output)
+
+
+        for r in file_to_restore:
+            c: list[str] = get_possibilities(r[0])
+            if len(c) == 0:
+                if strict:
+                    log.error(f'{r[1]} di {r[0]} non esiste')
+                    exit(1)
+                else:
+                    log.warning(f'{r[1]} di {r[0]} non esiste, skippato')
+                    continue
+            file_target: str = os.path.join('/'.join(r[0].split('/')[:-1]), c[r[1]])
+            if interactive:
+                print(f'{file_target} | {r[0]}')
+                get_diff(file_target, r[0])
+                if 'y' != input('Continuare? [y/n] '):
+                    if strict:
+                        log.error('Annullato')
+                        exit(1)
+                    else:
+                        log.warning('Annullato')
+                        continue
+            
+            log.output(f'{r[0]} torna alla versione {r[1]}')
+            call_process('cp', [file_target, r[0], '--preserve=mode,ownership,timestamps'])
+            mf: Makefile = self.get_makefile()
+            if docker_update:
+                if docker_hard_reboot:
+                    log.warning('Docker hard reboot')
+                    mf.docker_hardreboot()
+                else:
+                    log.warning('Docker soft reboot')
+                    mf.docker_softreboot()
+
+            
+
+
+        for p in file_to_patch:
+            if not is_valid_file(p[1]):
+                if strict:
+                    log.error(f'File non valido ({p[1]})')
+                    exit(1)
+                else:
+                    log.warning(f'File non valido ({p[1]})')
+                    continue
+            if backup:
+                log.output(f'Backup di {p[0]}')
+                count: int = 0
+                last_file: list | str = get_possibilities(p[0])
+                if len(last_file) != 0:
+                    last_file = last_file[-1]
+                    count = int(last_file.split('_bkp')[-1])
+                prefix: str = '/'.join(p[0].split('/')[:-1])
+                file_name: str = p[0].split('/')[-1]
+                call_process('cp', [p[0], os.path.join(prefix, f'.{file_name}_bkp{count}'), '--preserve=mode,ownership,timestamps'])
+            if interactive:
+                if interactive:
+                    print(f'{p[0]} | {p[1]}')
+                    get_diff(p[0], p[1])
+                    if 'y' != input('Continuare? [y/n] '):
+                        if strict:
+                            log.error('Annullato')
+                            exit(1)
+                        else:
+                            log.warning('Annullato')
+                            continue
+        call_process('cp', [p[1], p[0], '--preserve=mode,ownership,timestamps'])
+        log.output(f'{p[0]} patchato')
+
 
     def __str__(self) -> str:
         return f'{self.name} ({self.alias}) located at: {self.path}, listen in: {self.port}'
