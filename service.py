@@ -117,17 +117,6 @@ class Service:
             
             log.output(f'{r[0]} torna alla versione {r[1]}')
             call_process('cp', [file_target, r[0], '--preserve=mode,ownership,timestamps'])
-            mf: Makefile = self.get_makefile()
-            if docker_update:
-                if docker_hard_reboot:
-                    log.warning('Docker hard reboot')
-                    mf.docker_hardreboot()
-                else:
-                    log.warning('Docker soft reboot')
-                    mf.docker_softreboot()
-
-            
-
 
         for p in file_to_patch:
             if not is_valid_file(p[1]):
@@ -160,6 +149,15 @@ class Service:
                             continue
         call_process('cp', [p[1], p[0], '--preserve=mode,ownership,timestamps'])
         log.output(f'{p[0]} patchato')
+
+        mf: Makefile = self.get_makefile()
+        if docker_update:
+            if docker_hard_reboot:
+                log.warning('Docker hard reboot')
+                mf.docker_hardreboot()
+            else:
+                log.warning('Docker soft reboot')
+                mf.docker_softreboot()
 
 
     def __str__(self) -> str:
