@@ -20,6 +20,7 @@ services_list: list[Service]
 do_backup: bool = not '--no-bkp' in p
 docker_update: bool = not '--no-docker' in p
 docker_hard: bool = '--hard-build' in p
+strict: bool = '--strict' in p
 
 # ---
 
@@ -72,15 +73,20 @@ def parse_instruction(instruction: str) -> list:
         return instruction, None
 
 listed_services: list[Service] = []
-for instr in p.__params__:
+for instr in list(filter(lambda x: x[0] != '-', p.__params__)):
     param1, param2 = parse_instruction(instr)
-    print(param1)
-    serv: Service = search_for_service(param1, services_list)
-    if serv is None:
-        log.error(f'Istruzione non valida {instr}')
-        exit(1)
+    result = search_for_service(param1, services_list)
+    if result is None:
+        if strict:
+            log.error(f'Istruzione non valida ({instr})')
+            exit(1)
+        else:
+            log.warning(f'Istruzione non valida, skipped ({instr})')
+            continue
+    serv, param1 = result
     serv.instr.append((param1, param2))
-    listed_services.append(serv)
+    if serv not in listed_services:
+        listed_services.append(serv)
 
 for serv in listed_services:
-    serv.execute_instruction(verbose, interactive, do_backup, docker_update, docker_hard)
+    serv.execute_instruction(interactive, do_backup, docker_update, docker_hard, strict)

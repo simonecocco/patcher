@@ -1,4 +1,3 @@
-from turtle import title
 from colorama import Fore, Back
 
 verbose: bool = True

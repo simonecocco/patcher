@@ -6,6 +6,7 @@ from sys import exit
 import re
 from makefile import Makefile
 import utils
+import secrets
 
 class Service:
     def __init__(self, directory: str, name: str, in_port: str, out_port: str, alias: str = '') -> None:
@@ -16,20 +17,54 @@ class Service:
         self.instr: list[str] = []
 
     def service_copy(self, do_not_overwrite: bool = True) -> None:
+        # todo da aggiornare con le versioni dei checkpoint
         utils.do_checkpoint_backup(self.path, do_not_overwrite)
 
-    def restore_bkp(self, target_version: int, skip_files: list[str], interactive: bool = True) -> None:
-        prefix: str = '/'.join(self.path.split('/')[:-1])
-        backup_path: str = os.path.join(prefix ,f'.{self.path}_bkp')
-        if len(skip_files) == 0:
-            utils.call_process('cp', ['-r', backup_path, self.path])
-        else:
-            utils.call_process('mkdir', ['-p', '/tmp/patcher_files'])
-            skip_files = list(map(lambda f: f.replace(self.path), skip_files))
-        #TODO
+    def restore_bkp(self, target_version: int, skip_files: list[str], interactive: bool = True, strict: bool = True) -> None:
+        if interactive:
+            if 'y' != input(f'Vuoi ripristinare {self.alias} alla versione {target_version}? '):
+                if strict:
+                    log.error('Annullato')
+                    exit(1)
+                else:
+                    log.warning('Annullato')
+                    return
 
-    def execute_instruction(self, verbose: bool = True, interactive: bool = True, backup: bool = True, docker_update: bool = True, docker_hard_reboot: bool = False) -> None:
-        pass #TODO
+        # salvo i file da tenere
+        dirname: str = f'/tmp/{secrets.token_hex(8)}'
+        call_process('mkdir', ['-p', dirname])
+        log.output(f'Uso {dirname}')
+        for sf in skip_files:
+            relative_path: str = sf.removeprefix(self.path).removeprefix('/')
+            absolute_backup_path: str = os.path.join(dirname, '/'.join(relative_path.split('/')[:-1]))
+            call_process('mkdir', ['-p', absolute_backup_path])
+            call_process('cp', [sf, tmp:=os.path.join(dirname, relative_path), '--preserve=mode,ownership,timestamps'])
+            print(f'Salvo {tmp}')
+        
+
+
+    def execute_instruction(self, interactive: bool = True, backup: bool = True, docker_update: bool = True, docker_hard_reboot: bool = False, strict: bool = False) -> None:
+        file_to_restore: list = [] #tuple
+        file_to_keep: list = [] #solo stringhe
+        file_to_patch: list = [] #tuple
+        log.output('Applico la patch')
+        for instr in self.instr:
+            param2_type = type(instr[1])
+            if param2_type is str:
+                file_to_patch.append(instr)
+            elif param2_type is int:
+                file_to_restore.append(instr)
+            elif instr[1] is None:
+                file_to_keep.append(instr[0])
+            else:
+                log.error(f'wtf bro {instr[1]}')
+                exit(1)
+        
+        tmp = list(filter(lambda t: t[0] == self.path or t[0][:-1] == self.path, file_to_restore))
+        if len(tmp) > 0: # ripristino dal checkpoint del servizio
+            self.restore_bkp(tmp[0][1], file_to_keep, interactive, strict)
+            file_to_restore.remove(tmp)
+        #TODO
 
     def __str__(self) -> str:
         return f'{self.name} ({self.alias}) located at: {self.path}, listen in: {self.port}'
@@ -40,7 +75,8 @@ class Service:
     def get_makefile(self) -> Makefile:
         return Makefile(os.path.join(self.path, 'makefile'))
 
-    #TODO
+    def __hash__(self) -> str:
+        return self.name
 
 JSON_FILE_NAME: str = 'services.json'
 
@@ -106,7 +142,7 @@ def get_services(current_dir: str, script_path: str, update: bool = False) -> li
     __saveservices__(script_path, tmp)
     return tmp
 
-def search_for_service(target: str, services: list[Service]) -> Service:
+def search_for_service(target: str, services: list[Service]) -> list[Service, str]:
     if '/' in services and os.path.exists(target): #è un percorso relativo o assoluto
         if os.path.isdir(target):
             log.error(f'Directory non consentite ({target})')
@@ -115,27 +151,27 @@ def search_for_service(target: str, services: list[Service]) -> Service:
         for s in services:
             common_path: str = os.path.commonprefix([absolute, s.path])
             if common_path == s.path:
-                return s
+                return s, absolute
     elif '/' in services and not os.path.exists(target): #è un percorso che contiene alias
         prefix: str = target.split('/')[0]
         for s in services:
             if prefix.lower() in s.name.lower() or prefix.lower() == s.alias.lower():
-                return s
+                return s, os.path.join(s.path, '/'.join(target.split('/')[1:]))
     elif '/' not in services and os.path.exists(target): #è un file relativo o una directory relativa
         absolute: str = os.path.abspath(target)
         if os.path.isdir(absolute):
             for s in services:
                 if absolute == s.path:
-                    return s
+                    return s, absolute
         else:
             for s in services:
                 common_path: str = os.path.commonprefix([absolute, s.path])
                 if common_path == s.path:
-                    return s
+                    return s, absolute
     else: #se non esiste nè è un percorso -> probabili un nome servizio o un file inesistente
         prefix: str = target.split('/')[0]
         for s in services:
             if prefix.lower() in s.name.lower() or prefix.lower() == s.alias.lower():
-                return s
+                return s, os.path.join(s.path, '/'.join(target.split('/')[1:]))
 
     return None
