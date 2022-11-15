@@ -7,55 +7,71 @@ Questo file semplifica la gestione delle patch dei servizi. Esso permette di pat
 # Come si usa?
 Il file deve essere posizonato nella directory home dove son presenti i servizi delle AD
 
-Per invocarlo si usa `./patcher.py` o `python3 patcher.py`.
+Per invocarlo: `python3 patcher.py`.
 ```Shell
 python3 patcher.py args
 ```
 
 # Azioni disponibili
-## Configurazione di servizi
-Per facilitare la scrittura, è possibile scrivere degli alias per ogni servizio.
+## Configurazione dei servizi
 
-Per fare ciò si può usare `python3 patcher.py configure` per fare sì che il wizard esegua il tutto automaticamente o passare come parametri gli alias in modo da farlo in modo automatico: `python3 patcher.py configure nome1=percorso_cartella1 nome2=percorso_cartella2 ...`.
+Quando viene avviato senza argomenti, _patcher_ trova automaticamente e mappa i servizi (porte, nome e percorso) su un file json che utilizzerà ogni volta patcher sarà richiesto.
 
-## Gestione delle patch (o patch multiple)
+Per essere considerato servizio, deve riuscire a localizzarlo nel disco e a mapparlo nei servizi attivi di docker.
 
-Il programma patcher, prende diversi argomenti dove ognuno rappresenta un file da _patchare_.
-
-Esempio: `python3 patcher.py percorso_file1=patch_to_file1 percorso_file2=patch_to_file2 ...`
-
-Al posto dei percorsi assoluti o relativi, è consigliato definire degli alias tramite `patcher.py configure`, in modo da sostituire i percorsi dei file con dei nomi più mnemonici.
-
-Esempio `python3 patcher.py nome1/file1=patch_to_file1 nome2/file2=patch_to_file1 ...`
-
-Quando un file viene modificato è possibile ritornare indietro ad una versione precedente, specificando il numero di versione richiesto, o andando a ritroso con numeri < 0.
-
-Esempio: `python3 patcher.py nome1/file1=-1 nome2/file2=0 ...`
-> Imposta il file presente nel percorso `nome1/file1` alla versione precedente alla sua ultima patch, e `nome2/file2` alla sua versione originale
-
-Ogni volta che vengono eseguite delle patch, è possibile portare indietro tutto il servizio ad una specifica versione come con un singolo file `patcher.py nome1=-1 ...` (_il servizio viene portato alla sua versione precedente_)
-
-E' inoltre possibile, tenere una specifica versione di un file o impostare una versione separata di esso.
-
-Esempio: `python3 patcher.py nome1=-1 nome1/file1 nome1/file2=0`
-> Tutto il servizio denominato nome1 viene portato ad una sua versione precedente;
->
-> il file1 presente nel servizio nome1 viene mantenuto inalterato;
->
-> e file2 presente nel servizio nome1 viene portato alla versione 0
-
-## Utilizzo di un file
-E' possibile utilizzare un file per passare gli argomenti a patcher.
-
-Il file deve avere una sintassi tipo (i commenti sono espressi con il #):
-```
-percorso_file=versione
-percorso_file=nuovo_file
-nome1=versione
-...
+Quando il servizio è mappato correttamente viene inserito un makefile che consente di gestire il docker in maniera rapida (vedi sezione **makefile**).
+```shell
+python3 patcher.py
 ```
 
-Per passare un file di istruzioni è necessario specificare una delle opzioni `-f` o `--file`.
+Struttura del file json generato
+```javascript
+[
+    {
+        'directory':s.path, //Percorso dove si trovano i sorgenti del servizio
+        'name':s.name, //Nome del servizio
+        'in_port':str(s.port[0]), //Porta interna
+        'out_port':str(s.port[1]), //Porta esterna
+        'alias':s.alias //Nome del servizio (mnemonico)
+    },
+    ...
+]
+```
+> Il file json viene generato in `patcher/services.json`
+
+## Edit dei servizi
+I servizi possono essere editati:
+* manualmente nel file services.json
+* automaticamente usando `python3 patcher.py configure`
+
+### Configure
+Usando configure viene usato un for-loop per iterare fra i servizi e modificare gli alias assegnati. Per terminare l'assegnazione è sufficiente usare CTRL+C.
+
+## Checkpoint
+Una volta che il servizio funziona correttamente, si può salvare il sorgente del servizio usando il comando `checkpoint`.
+
+Questo comando consente di fare un backup del sorgente da cui recuperare i file nel caso di eventuale eliminazione o rottura del servizio.
+
+### Uso
+```python
+python3 patcher.py alias_servizio
+# oppure
+python3 patcher.py nome_servizio
+# oppure
+python3 patcher.py path_del_servizio
+```
+
+## Applicazioni di patch e gestione delle versioni
+Ogni file può essere modificato in avanti (applicando una patch) o all'indietro (ripristinando una versione).
+
+### Applicazione di una patch ad un file
+> La sintassi per l'applicazione della patch è `old_file=new_file`. old_file deve essere necessariamente un file esistente all'interno del servizio, non è possibile operare al di fuori.
+>
+> Allo stesso modo old_file può essere composto in diversi modi: `absolute_path_to_file` o `<service_alias>/relative_path_to_file` o `relative_path_to_file`.
+> 
+> Il new_file invece sarà un percorso relativo o assoluto del file contenente la patch.
+
+#TODO
 
 # Opzioni disponibili
 * `-q`: non mostra i crediti e la versione
@@ -64,3 +80,5 @@ Per passare un file di istruzioni è necessario specificare una delle opzioni `-
 * `--hard-build`: distrugge il container e lo riporta su (da utilizzare solo in caso di necessità). Per utilizzarla è necessario non sia presente `--no-docker`
 * `-v` o `--verbose`: mostra un output dettagliato
 * `-y`: non chiede l'autorizzazione all'utente
+
+# Opzioni makefile
