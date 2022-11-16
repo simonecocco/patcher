@@ -64,6 +64,17 @@ python3 patcher.py path_del_servizio
 ## Applicazioni di patch e gestione delle versioni
 Ogni file può essere modificato in avanti (applicando una patch) o all'indietro (ripristinando una versione).
 
+Prendiamo per esempio un'albero di file di alcuni servizi d'esempio:
+
+Serv1/
+-> main.py
+-> img/
+--> loader.py
+
+Serv2/
+-> wifi_loader
+-> README.md
+
 ### Applicazione di una patch ad un file
 > La sintassi per l'applicazione della patch è `old_file=new_file`. old_file deve essere necessariamente un file esistente all'interno del servizio, non è possibile operare al di fuori.
 >
@@ -71,7 +82,58 @@ Ogni file può essere modificato in avanti (applicando una patch) o all'indietro
 > 
 > Il new_file invece sarà un percorso relativo o assoluto del file contenente la patch.
 
-#TODO
+> _Esempio: ho sistemato il file loader.py creando un nuovo file_ `patch_loader.py` _e lo voglio applicare_
+
+```shell
+python3 patcher.py alias_serv1/img/loader.py=../patch_loader.py
+```
+Oppure
+```shell
+python3 patcher.py Serv1/img/loader.py=../patch_loader.py
+```
+
+> Più file possono essere patchati contemporaneamente, aggiungendo dei file
+
+```shell
+python3 patcher.py old_file1=new_file1 old_file2=new_file2 ...
+```
+
+### Ripristino di una versione precedente
+> Le regole di scrittura di old_file sono uguali alla sezione di patch.
+
+Per il ripristino di un file, è necessario specificare il file richiesto per poi determinarne la versione.
+
+> _Esempio: vogliamo che loader.py torni alla versione pre patch_
+```shell
+python3 patcher.py Serv1/img/loader.py=-1
+```
+
+> _Esempio2: vogliamo che un file torni alla sua versione n.3_
+```shell
+python3 patcher.py file=2
+```
+
+Anche qua è possibile ripristinare più file:
+```shell
+python3 patcher.py file1=target_version1 file2=target_version2 ...
+```
+
+### Opzione speciale: ripristino di un servizio da un checkpoint
+Questa è un'opzione speciale che è presente nella parte di ripristino.
+
+Infatti se si specifica il nome del servizio e la versione (`Serv1=versione`) è possibile ripristinare l'intero servizio a quella versione.
+
+Se però è stata applicata una patch e si vuole preservare il file patchato è possibile escludere quel file (o più file) dal ripristino.
+
+```shell
+python3 patcher.py Serv1=-1 file1_to_preserve file2_to_preserve
+```
+
+In aggiunta a questo, dopo il ripristino possono anche essere eseguite delle patch!!
+
+```shell
+python3 patcher.py Serv1=-1 file1_to_preserve file_to_patch=path_to_patch
+```
 
 # Opzioni disponibili
 * `-q`: non mostra i crediti e la versione
