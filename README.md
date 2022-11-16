@@ -1,6 +1,10 @@
 # patcher
 > Gestione delle patch per Attacco/Difesa
 
+# Nuova versione
+
+**!** _Nel branch `develop` è presente la versione 2 (attualmente in beta)._ **!**
+
 # A cosa serve?
 Questo file semplifica la gestione delle patch dei servizi. Esso permette di patchare uno o più file per poi ritornare indietro con le versioni.
 
