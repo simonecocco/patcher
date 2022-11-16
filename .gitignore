@@ -1,8 +1,4 @@
 *.json
 __pycache__
-<<<<<<< HEAD
 __pycache__/*
 *.html
-=======
-__pycache__/*
->>>>>>> ef4273e (Prima versione gitignore)
