@@ -136,11 +136,30 @@ python3 patcher.py Serv1=-1 file1_to_preserve file_to_patch=path_to_patch
 ```
 
 # Opzioni disponibili
-* `-q`: non mostra i crediti e la versione
-* `--no-bkp`: serve a non far fare il backup della patch corrente in caso di ripristino
+* `-q`: si avvia in modo silenzioso, non mostra crediti e versione
+* `--no-bkp`: non esegue il backup del file prima di sostituirlo con la versione di patch
 * `--no-docker`: una volta finita l'operazione con i file non eseguirà la compilazione con docker
-* `--hard-build`: distrugge il container e lo riporta su (da utilizzare solo in caso di necessità). Per utilizzarla è necessario non sia presente `--no-docker`
-* `-v` o `--verbose`: mostra un output dettagliato
-* `-y`: non chiede l'autorizzazione all'utente
+* `--hard-build`: porta giù il container e lo riporta su (comporta l'eliminazione dei dati non salvati). Per utilizzarla è necessario non sia presente `--no-docker`
+* `-v` o `--verbose`: stampa diversi output
+* `-y`: non chiede conferma all'utente su una determinata operazione ma la esegue automaticamente
+* `--strict`: 
 
 # Opzioni makefile
+> Il makefile viene creato all'interno di ogni servizio automaticamente.
+
+## Softreboot del servizio
+Il makefile contiene una scorciatoia per eseguire il soft reboot del servizio.
+
+```shell
+make soft
+```
+> Il comando di prima equivale a `sudo docker-compose build && sudo docker-compose up --build -d`
+
+## Hardreboot del servizio
+> Attenzione, l'hard reboot cancella tutti i dati non salvati in volumi.
+
+```shell
+make hard
+```
+
+> Il comando di prima equivale a `sudo docker-compose build && sudo docker-compose down && sudo docker-compose up --build -d`
