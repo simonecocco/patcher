@@ -24,6 +24,11 @@ strict: bool = '--strict' in p
 
 # ---
 
+if not quiet:
+    credits.print_credit()
+
+# ---
+
 if len(p) == 0:
     services_list = get_services(p.__currentdir__, p.__scriptpath__, update=True)
     for service in services_list:
