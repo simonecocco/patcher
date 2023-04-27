@@ -14,7 +14,7 @@ def print_credit() -> None:
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
 
     ''' + Fore.RESET)
-    print(Fore.GREEN + 'made with ❤️ from d1dpvl' + Fore.RESET + f'\nVersione: {VERSION}\n')
+    print(Fore.GREEN + 'made with ❤️ from simonecocco' + Fore.RESET + f'\nVersione: {VERSION}\n')
 
 
 help: str = '''come usarlo:
