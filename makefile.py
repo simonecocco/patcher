@@ -1,5 +1,6 @@
 import os
 import utils
+from log import output
 
 makefile_content: str = '''all: build up
 
@@ -22,8 +23,9 @@ log:
 '''
 
 
+
 class Makefile:
-	def __init__(self, service_path: str, create_if_not_exist: bool=True) -> None:
+	def __init__(self, service_path: str, create_if_not_exist: bool=True, docker_v2=False, verbose=False) -> None:
 		"""
 		Crea un file makefile nel caso non ci sia
 		:param service_path path del servizio
@@ -33,7 +35,11 @@ class Makefile:
 		#print(f'Using {self.service_mf_path} as makefile')
 		if not utils.is_valid_file(self.service_mf_path):
 			mkfile_tmp = open(self.service_mf_path, 'w')
-			mkfile_tmp.write(makefile_content)
+			output(f'Creo makefile in {self.service_mf_path} (v2? {docker_v2})', verbose)
+			if not docker_v2:
+				mkfile_tmp.write(makefile_content)
+			else:
+				mkfile_tmp.write(makefile_content.replace('docker-compose', 'docker compose'))
 			mkfile_tmp.close()
 
 	def __callmake__(self, target) -> None:

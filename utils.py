@@ -49,4 +49,3 @@ def do_checkpoint_backup(service_path: str) -> None:
             break
     
     call_process('cp', ['-r', service_path, backup_path, '--preserve=mode,ownership,timestamps'])
-    

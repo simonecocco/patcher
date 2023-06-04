@@ -1,97 +1,79 @@
 #!/usr/bin/python3
 
-import re
+from os.path import join, exists
+from options import configure_argparse
+from credits import print_credit
+from docker_services import *
+from json import loads
+from os import getcwd
+from log import output, error, warning
 from sys import exit
-from params import Params
-from utils import is_valid_file, call_process
-import credits
-from service import Service, JSON_FILE_NAME, __saveservices__, get_services, search_for_service
-from makefile import Makefile
-from os.path import join
-import os
-import log
 
-p: Params = Params(help_description=credits.help, exit_if_no_args=False)
-interactive: bool = not '-y' in p
-verbose: bool = ['-v', '--verbose'] in p
-log.verbose = verbose
-quiet: bool = '-q' in p
-services_list: list[Service]
-do_backup: bool = not '--no-bkp' in p
-docker_update: bool = not '--no-docker' in p
-docker_hard: bool = '--hard-build' in p
-strict: bool = '--strict' in p
+class ActionBuilder:
+    actions = ['configure']
 
-# ---
+    def __init__(self, params):
+        self.action = params.remove(0) if params[0] in ActionBuilder.actions else None
+        self.files = params
 
-if not quiet:
-    credits.print_credit()
+    def __configure_services__(self, verbose=False, dockerv2=False):
+        servs = scan_for_services(verbose)
+        servs_disk = scan_disk_for_services(verbose)
+        register_services(servs, servs_disk, verbose, dockerv2=dockerv2)
 
-# ---
-
-if len(p) == 0:
-    services_list = get_services(p.__currentdir__, p.__scriptpath__, update=True)
-    for service in services_list:
-        Makefile(service.path)
-        service.service_copy()
-    exit(0)
-else:
-    services_list = get_services(p.__currentdir__, p.__scriptpath__)
-
-# ---
-
-if 'configure' in p:
-    try:
-        for service in services_list:
-            print(f'Servizio:{service.name}, path:{service.path}, porta(int, out):{service.port}')
-            tmp: str = input('imposta alias per il servizio: (o vuoto per skip) ')
-            if len(tmp) > 0:
-                service.alias = tmp
-    except KeyboardInterrupt:
-        pass
-
-    __saveservices__(os.path.join(p.__scriptpath__, JSON_FILE_NAME), services_list)
-    exit(0)
-
-# ---
-
-if 'checkpoint' in p:
-    target: list[str] = [x.lower() for x in p.__params__[1:]]
-    for t in target:
-        for s in services_list:
-            if t in s.name or t == s.alias:
-                print(f'Checkpoint di {s.name} ({s.alias})')
-                s.service_copy()
-    exit(0)
-
-# ---
-
-def parse_instruction(instruction: str) -> list:
-    if '=' in instruction: 
-        old_file, new_file = instruction.split('=')
-        try:
-            i = int(new_file)
-            return old_file, i
-        except:
-            return old_file, new_file
-    else:
-        return instruction, None
-
-listed_services: list[Service] = []
-for instr in list(filter(lambda x: x[0] != '-', p.__params__)):
-    param1, param2 = parse_instruction(instr)
-    result = search_for_service(param1, services_list)
-    if result is None:
-        if strict:
-            log.error(f'Istruzione non valida ({instr})')
+    def __load_services__(self, verbose=False):
+        output('Caricamento servizi...', verbose)
+        json_path = join(getcwd(), 'services.json') if 'patcher' in getcwd() else join(getcwd(), 'patcher.py', 'services.json')
+        if not exists(json_path):
+            error('Servizi non configurati, configurali con \'python3 patcher.py configure\'')
             exit(1)
-        else:
-            log.warning(f'Istruzione non valida, skipped ({instr})')
-            continue
-    serv, param1 = result
-    serv.instr.append((param1, param2))
-    if serv not in listed_services:
-        listed_services.append(serv)
+        with open(json_path, 'r') as f:
+            tmp = '\n'.join(f.readlines())
+        servs = loads(tmp)
+        servs = [Service(d['disk_path'], d['port'], d['name'], d['alias']) for d in servs]
+        output(f'Presenti {len(servs)} servizi', verbose)
+        return servs
 
-for serv in listed_services:
-    serv.execute_instruction(interactive, do_backup, docker_update, docker_hard, strict)
+    def __split_params_to_services__(self, servs, param, strict=False):
+        def compare(servs, name):
+            serv_name = name.split('=')[0] if '=' in name else name
+            serv_name = serv_name.lower()
+            for i, serv in enumerate(servs):
+                if serv_name.startswith(serv.disk_path.lower()):
+                    return i
+                if serv.name.lower() in serv_name or serv.alias.lower() in serv_name:
+                    return i
+
+            return None
+
+        d = [(serv, []) for serv in servs]
+        for cmd in param:
+            index = compare(servs, cmd)
+            if index is None:
+                warning(f'Il comando {cmd} non fa riferimento ad alcun servizio conosciuto')
+                if strict:
+                    exit(1)
+                else:
+                    continue
+            d[index][1].append(cmd)
+        return d
+
+
+    def run(self, verbose=False, dockerv2=False, strict=False, all_yes=False, no_bkp=False, no_docker=False, hard_build=False):
+        if self.action is None:
+            servs = self.__load_services__(verbose=verbose)
+            d = self.__split_params_to_services__(servs, self.files, strict)
+            d = list(filter(lambda e: len(e[1]) > 0, d))
+            for t in d:
+                t[0].apply_patch(t[1], all_yes=all_yes, no_bkp=no_bkp, no_docker=no_docker, hard_build=hard_build, verbose=verbose, strict=strict)
+        elif self.action == ActionBuilder.actions[0]:
+            self.__configure_services__(verbose, dockerv2)
+
+if __name__ == '__main__':
+    opt = configure_argparse().parse_args()
+
+    if not opt.quiet:
+        print_credit()
+
+    action = ActionBuilder(opt.params)
+    action.run(verbose=opt.verbose, dockerv2=opt.docker2, strict=opt.strict, all_yes=opt.yes, no_bkp=opt.no_bkp, no_docker=opt.no_docker, hard_build=opt.hard_build)

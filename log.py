@@ -1,13 +1,10 @@
 from colorama import Fore, Back
 
-verbose: bool = True
-
-
 def __template__(log_msg: str , msg: str, color: str = '') -> None:
     print(color + f'Log ({log_msg}): {msg}' + Fore.RESET)
 
 
-def output(msg: str, ec: bool = False) -> None:
+def output(msg: str, verbose, ec: bool = False) -> None:
     if not verbose:
         return
     if ec:
@@ -16,8 +13,9 @@ def output(msg: str, ec: bool = False) -> None:
         __template__('output', msg)
 
 
-def debug(msg: str) -> None:
-    __template__('debug', msg, color=Fore.GREEN)
+def debug(msg: str, verbose) -> None:
+    if verbose:
+        __template__('debug', msg, color=Fore.GREEN)
 
 
 def warning(msg: str) -> None:
