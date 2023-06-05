@@ -7,8 +7,7 @@ makefile_content: str = '''all: build up
 build:
 \tsudo docker-compose build
 
-up:
-\tsudo docker-compose build
+up: build
 \tsudo docker-compose up --build -d
 
 down:
