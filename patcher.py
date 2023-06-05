@@ -13,7 +13,7 @@ class ActionBuilder:
     actions = ['configure']
 
     def __init__(self, params):
-        self.action = params.remove(0) if params[0] in ActionBuilder.actions else None
+        self.action = params.pop(0) if params[0] in ActionBuilder.actions else None
         self.files = params
 
     def __configure_services__(self, verbose=False, dockerv2=False):
