@@ -1,10 +1,11 @@
 from json import dumps
 from utils import call_process
 from sys import exit
-from log import error, output, warning
+from log import error, output, warning, diff_output
 from os import listdir, getcwd, chdir
-from os.path import join, isdir, exists, abspath
+from os.path import join, isdir, exists, abspath, dirname, basename
 from makefile import Makefile
+from time import sleep
 
 class Service:
     def __init__(self, disk_path, port, name, alias, dockerv2=False, verbose=False):
@@ -22,14 +23,56 @@ class Service:
             'alias':self.alias
         }
 
-    def __update_file__(self, original, new): #todo
-        pass
+    def __update_file__(self, original, new, no_bkp=False, all_yes=False, verbose=False):
+        if not exists(original) or not exists(new):
+            return False
+        if not all_yes:
+            with open(original, 'r') as f:
+                orig = f.read()
+            with open(new, 'r') as f:
+                new_content = f.read()
+            diff_output('FILE ORIGINALE', orig, 'FILE NUOVO', new_content)
+            warning('Applico le modifiche? [y/n] ')
+            risposta = input()
+            if risposta.lower() != 'y':
+                return False
 
-    def __restore_file__(self, file_path, version): #todo
-        pass
+        if not no_bkp:
+            dir, fn = dirname(original), basename(original)
+            count = 0
+            while exists(join(dir, f'.{fn}.bkp{count}')):
+                count += 1
+            output(f"Eseguo backup in {join(dir, f'.{fn}.bkp{count}')}", verbose)
+            call_process('mv', [original, join(dir, f'.{fn}.bkp{count}')])
+        out, err = call_process('cp', [new, original])
+        if len(err) > 0:
+            error('Errore, ri applico il precedente file')
+            call_process('mv', [join(dir, f'.{fn}.bkp{count}'), original])
+            return False
+        else:
+            output('Completato', verbose)
+            return True
+
+    def __restore_file__(self, file_path, version, no_bkp=False, all_yes=False, verbose=False):
+        original = file_path
+        dir, fn = dirname(original), basename(original)
+        if version < 0:
+            count = -1
+            while True:
+                if exists(join(dir, f'.{fn}.bkp{count+1}')):
+                    count += 1
+                else:
+                    break
+            if count < 0:
+                warning('Non esiste una versione base')
+                return False
+            new = join(dir, f'.{fn}.bkp{count}')
+        else:
+            new = join(dir, f'.{fn}.bkp{version}')
+        return self.__update_file__(original, new, no_bkp=no_bkp, all_yes=all_yes, verbose=verbose)
 
     def __checkpoint__(self): #todo
-        pass
+        raise NotImplementedError('Modalità checkpoint non ancora implementata')
 
     def __str__(self):
         return self.disk_path
@@ -42,14 +85,13 @@ class Service:
             if exists(file_path):
                 return file_path
             else:
-                print(self.disk_path, file_path)
                 ffp = file_path.lower()
                 if self.alias.lower() in ffp and (index := ffp.find(self.alias.lower())) != -1:
                     index += len(self.alias)
-                    return join(*self.disk_path.split('/'), *file_path[index:].split('/'))
+                    return join('/', *self.disk_path.split('/'), *file_path[index:].split('/'))
                 elif self.name.lower() in ffp and (index := ffp.find(self.name.lower())) != -1:
                     index += len(self.alias)
-                    return join(*self.disk_path.split('/'), *file_path[index:].split('/'))
+                    return join('/', *self.disk_path.split('/'), *file_path[index:].split('/'))
                 
                 error(f'Il file {file_path} non esiste')
                 exit(1)
@@ -70,14 +112,37 @@ class Service:
         output(f'Applicazione patch per {self.alias}', verbose)
         for istr in file_list:
             cmd = get_file_path(istr)
+            result = False
             if cmd[1] is None:
-                self.__checkpoint__()
+                result = self.__checkpoint__()
+                break
             elif type(cmd[1]) is int:
-                self.__restore_file__(*cmd)
+                result = self.__restore_file__(cmd[0], cmd[1], no_bkp, all_yes, verbose)
             elif type(cmd[1]) is str:
-                self.__update_file__(*cmd)
+                result = self.__update_file__(cmd[0], cmd[1], no_bkp, all_yes, verbose)
+            if not result:
+                error(f'Problema con {cmd[0]}')
+                if strict:
+                    exit(1)
 
-def scan_for_services(v=False):
+        output('Applicazione completa', verbose)
+        if not no_docker:
+            if hard_build:
+                output('Eseguo riavvio completo del servizio', verbose)
+                self.mk.docker_hardreboot()
+            else:
+                output('Eseguo soft reboot del servizio', verbose)
+                self.mk.docker_softreboot()
+            #release = False
+            #while not release:
+            #    ser = scan_for_services(v=False, select=self.name)[0]
+            #    print(f'Status servizio: {ser["status"]}')
+            #    if 'up' in ser['status'].lower():
+            #        release = True
+            output('Completato', verbose)
+
+
+def scan_for_services(v=False, select=None):
     def get_information(row):
         s = row.split(',')
         return {
@@ -100,7 +165,7 @@ def scan_for_services(v=False):
     output('Fatto', v)
 
     out = out.split('\n')[1:-1]
-    return [get_information(row) for row in out]
+    return [get_information(row) for row in out if select is None or select in row]
 
 def scan_disk_for_services(v=False):
     output('Localizzazione servizi su disco', v)
