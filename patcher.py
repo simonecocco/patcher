@@ -37,11 +37,13 @@ class ActionBuilder:
     def __split_params_to_services__(self, servs, param, strict=False):
         def compare(servs, name):
             serv_name = name.split('=')[0] if '=' in name else name
+            mini_serv_name = serv_name.split('/')[0]
             serv_name = serv_name.lower()
             for i, serv in enumerate(servs):
                 if serv_name.startswith(serv.disk_path.lower()):
                     return i
-                if serv.name.lower() in serv_name or serv.alias.lower() in serv_name:
+                # previene l'identificazione errata tramite file
+                if serv.name.lower() in mini_serv_name or serv.alias.lower() in mini_serv_name:
                     return i
 
             return None
