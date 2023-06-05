@@ -28,8 +28,8 @@ def error(msg: str) -> None:
 
 def diff_output(title1: str, text1: str, title2: str, text2: str) -> None:
     def __innerecprint__(back: str, fore: str, msg: str):
-        print(back + fore + f'\n{msg}\n' + Fore.RESET + Back.RESET)
-    output(title1, ec=True)
+        print(back + fore + f'{msg}' + Fore.RESET + Back.RESET)
+    output(f'\n{title1}', True, ec=True)
     __innerecprint__(Back.BLACK, Fore.WHITE, f'{text1}\n')
-    output(title2, ec=True)
+    output(f'\n{title2}', True, ec=True)
     __innerecprint__(Back.WHITE, Fore.BLACK, f'{text2}\n')
