@@ -8,6 +8,7 @@ build:
 \tsudo docker-compose build
 
 up:
+\tsudo docker-compose build
 \tsudo docker-compose up --build -d
 
 down:
