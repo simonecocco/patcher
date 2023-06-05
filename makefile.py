@@ -32,7 +32,6 @@ class Makefile:
 		:param create_if_not_exist 
 		"""
 		self.service_mf_path: str = service_path if service_path.endswith('makefile') else os.path.join(service_path, 'makefile')
-		#print(f'Using {self.service_mf_path} as makefile')
 		if not utils.is_valid_file(self.service_mf_path):
 			mkfile_tmp = open(self.service_mf_path, 'w')
 			output(f'Creo makefile in {self.service_mf_path} (v2? {docker_v2})', verbose)
@@ -42,17 +41,22 @@ class Makefile:
 				mkfile_tmp.write(makefile_content.replace('docker-compose', 'docker compose'))
 			mkfile_tmp.close()
 
-	def __callmake__(self, target) -> None:
-		utils.call_process('make', ['-C', self.service_mf_path, target])
+	def __callmake__(self, target):
+		out, err = utils.call_process('make', ['-C', self.service_mf_path, target])
+		return out, err
 
-	def __docker_up__(self) -> None:
-		self.__callmake__('up')
+	def __docker_up__(self):
+		out, err = self.__callmake__('up')
+		return out, err
 
-	def __docker_down__(self) -> None:
-		self.__callmake__('down')
+	def __docker_down__(self):
+		out, err = self.__callmake__('down')
+		return out, err
 
-	def docker_hardreboot(self) -> None:
-		self.__callmake__('hard')
+	def docker_hardreboot(self):
+		out, err = self.__callmake__('hard')
+		return out, err
 
-	def docker_softreboot(self) -> None:
-		self.__callmake__('soft')
+	def docker_softreboot(self):
+		out, err = self.__callmake__('soft')
+		return out, err
