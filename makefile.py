@@ -1,6 +1,7 @@
 import os
 import utils
-from log import output
+from log import output, error, debug, warning
+from os.path import dirname
 
 makefile_content: str = '''all: build up
 
@@ -31,6 +32,7 @@ class Makefile:
 		:param service_path path del servizio
 		:param create_if_not_exist 
 		"""
+		self.verbose = verbose
 		self.service_mf_path: str = service_path if service_path.endswith('makefile') else os.path.join(service_path, 'makefile')
 		if not utils.is_valid_file(self.service_mf_path):
 			mkfile_tmp = open(self.service_mf_path, 'w')
@@ -42,7 +44,12 @@ class Makefile:
 			mkfile_tmp.close()
 
 	def __callmake__(self, target):
-		out, err = utils.call_process('make', ['-C', self.service_mf_path, target])
+		out, err = utils.call_process('make', ['-C', dirname(self.service_mf_path), target])
+		print(out, err)
+		if len(out) > 0:
+			debug(out, self.verbose)
+		if len(err) > 0:
+			warning(err)
 		return out, err
 
 	def __docker_up__(self):

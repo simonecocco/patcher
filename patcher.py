@@ -5,7 +5,7 @@ from options import configure_argparse
 from credits import print_credit
 from docker_services import *
 from json import loads
-from os import getcwd
+from os import getcwd, geteuid
 from log import output, error, warning
 from sys import exit
 
@@ -30,7 +30,7 @@ class ActionBuilder:
         with open(json_path, 'r') as f:
             tmp = '\n'.join(f.readlines())
         servs = loads(tmp)
-        servs = [Service(d['disk_path'], d['port'], d['name'], d['alias']) for d in servs]
+        servs = [Service(d['disk_path'], d['port'], d['name'], d['alias'], verbose=verbose) for d in servs]
         output(f'Presenti {len(servs)} servizi', verbose)
         return servs
 
@@ -72,6 +72,10 @@ class ActionBuilder:
             self.__configure_services__(verbose, dockerv2)
 
 if __name__ == '__main__':
+    if geteuid() != 0:
+        print('Questo programma funziona solo come root')
+        exit(1)
+
     opt = configure_argparse().parse_args()
 
     if not opt.quiet:
