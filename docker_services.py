@@ -27,11 +27,25 @@ class Service:
         if not exists(original) or not exists(new):
             return False
         if not all_yes:
+            """La riga ha un bug: non mostra realmente le differenze
             with open(original, 'r') as f:
                 orig = f.read()
             with open(new, 'r') as f:
                 new_content = f.read()
+
             diff_output('FILE ORIGINALE', orig, 'FILE NUOVO', new_content)
+            """
+            orig_file_content, _ = call_process('xxd', [original])
+            with open('/tmp/diff_file1.txt', 'w') as f:
+                f.write(orig_file_content)
+            new_file_content, _ = call_process('xxd', [new])
+            with open('/tmp/diff_file2.txt', 'w') as f:
+                f.write(new_file_content)
+            diff_out, _ = call_process('diff', '/tmp/diff_file1.txt', '/tmp/diff_file2.txt')
+            diff_out = [line.strip() for line in diff_out.split('\n')]
+            orig_diff = '\n'.join([line[2:] for line in diff_out if line.startswith('<')])
+            new_diff = '\n'.join([line[2:] for line in diff_out if line.startswith('>')])
+            diff_output('FILE ORIGINALE', orig_diff, 'FILE NUOVO', new_diff)
             warning('Applico le modifiche? [y/n] ')
             risposta = input()
             if risposta.lower() != 'y':
