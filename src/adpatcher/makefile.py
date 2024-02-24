@@ -1,5 +1,5 @@
 import os
-import adpatcher.utils
+import adpatcher.utils as utils
 from adpatcher.log import output, error, debug, warning
 from os.path import dirname
 
