@@ -10,8 +10,11 @@ from sys import exit
 class ActionBuilder:
     actions = ['configure']
 
+    # Costruttore della classe
     def __init__(self, params):
+        # Controlla se il primo parametro è un'azione e lo memorizza
         self.action = params.pop(0) if params[0] in ActionBuilder.actions else None
+        # Il resto sono file da modificare
         self.files = params
 
     def __configure_services__(self, verbose=False, dockerv2=False):
@@ -71,7 +74,7 @@ class ActionBuilder:
 
 def entry_point(arguments):
     if geteuid() != 0:
-        print('Questo programma funziona solo come root')
+        print('This script must be run as root')
         exit(1)
 
     opt = configure_argparse().parse_args(arguments)
@@ -80,4 +83,13 @@ def entry_point(arguments):
         print_credit()
 
     action = ActionBuilder(opt.params)
-    action.run(verbose=opt.verbose, dockerv2=opt.docker2, strict=opt.strict, all_yes=opt.yes, no_bkp=opt.no_bkp, no_docker=opt.no_docker, hard_build=opt.hard_build)
+    run_params = {
+        'verbose': opt.verbose,
+        'dockerv2': opt.docker2,
+        'strict': opt.strict,
+        'all_yes': opt.yes,
+        'no_bkp': opt.no_bkp,
+        'no_docker': opt.no_docker,
+        'hard_build': opt.hard_build
+    }
+    action.run(**run_params)
