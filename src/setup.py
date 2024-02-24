@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='adpatcher',
-    version='2.3.2',
+    version='2.3.3',
     packages=find_packages(),
     install_requires=['colorama==0.4.6'],
     entry_points = {
