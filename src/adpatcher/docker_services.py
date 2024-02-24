@@ -1,10 +1,10 @@
 from json import dumps
-from utils import call_process
+from adpatcher.utils import call_process
 from sys import exit
-from log import error, output, warning, diff_output
+from adpatcher.log import error, output, warning, diff_output
 from os import listdir, getcwd, chdir
 from os.path import join, isdir, exists, abspath, dirname, basename
-from makefile import Makefile
+from adpatcher.makefile import Makefile
 from time import sleep
 
 class Service:

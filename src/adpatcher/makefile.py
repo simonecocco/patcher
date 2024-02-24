@@ -1,6 +1,6 @@
 import os
-import utils
-from log import output, error, debug, warning
+import adpatcher.utils
+from adpatcher.log import output, error, debug, warning
 from os.path import dirname
 
 makefile_content: str = '''all: build up

@@ -1,12 +1,10 @@
-#!/usr/bin/python3
-
 from os.path import join, exists
-from options import configure_argparse
-from credits import print_credit
-from docker_services import *
+from adpatcher.options import configure_argparse
+from adpatcher.credits import print_credit
+from adpatcher.docker_services import *
 from json import loads
 from os import getcwd, geteuid
-from log import output, error, warning
+from adpatcher.log import output, error, warning
 from sys import exit
 
 class ActionBuilder:
@@ -71,12 +69,12 @@ class ActionBuilder:
         elif self.action == ActionBuilder.actions[0]:
             self.__configure_services__(verbose, dockerv2)
 
-if __name__ == '__main__':
+def entry_point(arguments):
     if geteuid() != 0:
         print('Questo programma funziona solo come root')
         exit(1)
 
-    opt = configure_argparse().parse_args()
+    opt = configure_argparse().parse_args(arguments)
 
     if not opt.quiet:
         print_credit()

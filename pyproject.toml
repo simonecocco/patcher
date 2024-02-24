@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "adpatcher"
+version = "2.3.2"
+authors = [
+  { name="Simone Cocco", email="coccosimone1234@gmail.com" },
+]
+description = "A tools to patch files during A/D"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "colorama"
+]
+[project.scripts]
+patcher = "adpatcher.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/simonecocco/patcher"
+Issues = "https://github.com/simonecocco/patcher/issues"

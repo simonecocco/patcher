@@ -1,6 +1,6 @@
 import os
 from subprocess import call, Popen, PIPE
-from log import error
+from adpatcher.log import error
 
 
 def is_valid_file(file_path: str, is_file: bool=True, readable: bool=True):

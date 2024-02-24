@@ -3,3 +3,7 @@ __pycache__
 __pycache__/*
 *.html
 .idea
+dist
+src/adpatcher.egg-info
+adpatcher.egg-info
+build
