@@ -2,36 +2,52 @@ from os.path import join, exists
 from adpatcher.options import configure_argparse
 from adpatcher.credits import print_credit
 from adpatcher.docker_services import *
+from adpatcher.utils import call_process
 from json import loads
 from os import getcwd, geteuid
 from adpatcher.log import output, error, warning
 from sys import exit
 
 class ActionBuilder:
-    actions = ['configure']
+    actions = {
+        # Configura i vari servizi
+        'configure': lambda self, verbose, dockerv2,: self.__configure_services__(verbose, dockerv2),
+        # Fornisce una panoramica dei servizi
+        'sysadmin': lambda self, verbose, dockerv2: self.__show_sysadmin_panel__(verbose, dockerv2)
+    }
 
     # Costruttore della classe
     def __init__(self, params):
         # Controlla se il primo parametro è un'azione e lo memorizza
-        self.action = params.pop(0) if params[0] in ActionBuilder.actions else None
+        self.action = params.pop(0) if params[0] in ActionBuilder.actions.keys() else None
         # Il resto sono file da modificare
         self.files = params
 
+    # Configura i servizi
     def __configure_services__(self, verbose=False, dockerv2=False):
+        output('Configurazione servizi...', verbose)
         servs = scan_for_services(verbose)
         servs_disk = scan_disk_for_services(verbose)
         register_services(servs, servs_disk, verbose, dockerv2=dockerv2)
 
+    def __show_sysadmin_panel__(self, verbose=False, dockerv2=False):
+        output('Loading sysadmin panel...', verbose)
+        servs = self.__load_services__(True)
+        container_status, _ = call_process('docker', ['ps', '-a', '--format', 'table {{.Names}}\t{{.Status}}']) # controlla per exit o dead
+        container_resources, _ = call_process('docker', ['stats', '--no-stream', '--format', 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}'])
+        # implementa la visualizzazione dei log per ogni servizio. nei log cerchi la parola chiave che indica un errore
+        # da là fai comparire il fatto che sia presente
+
     def __load_services__(self, verbose=False):
         output('Caricamento servizi...', verbose)
-        json_path = join(getcwd(), 'services.json') if 'patcher' in getcwd() else join(getcwd(), 'patcher.py', 'services.json')
+        json_path = join(getcwd(), 'services.json') if 'patcher' == getcwd()[-len('patcher'):] else join(getcwd(), 'patcher', 'services.json')
         if not exists(json_path):
-            error('Servizi non configurati, configurali con \'python3 patcher.py configure\'')
+            error('Servizi non configurati, configurali con \'sudo patcher configure\'')
             exit(1)
         with open(json_path, 'r') as f:
             tmp = '\n'.join(f.readlines())
         servs = loads(tmp)
-        servs = [Service(d['disk_path'], d['port'], d['name'], d['alias'], verbose=verbose) for d in servs]
+        servs = [Service(d['disk_path'], d['port'], d['name'], d['alias'], id=['id'], verbose=verbose) for d in servs]
         output(f'Presenti {len(servs)} servizi', verbose)
         return servs
 
@@ -69,14 +85,16 @@ class ActionBuilder:
             d = list(filter(lambda e: len(e[1]) > 0, d))
             for t in d:
                 t[0].apply_patch(t[1], all_yes=all_yes, no_bkp=no_bkp, no_docker=no_docker, hard_build=hard_build, verbose=verbose, strict=strict)
-        elif self.action == ActionBuilder.actions[0]:
-            self.__configure_services__(verbose, dockerv2)
+        else:
+            # Esegue l'azione specificata
+            ActionBuilder.actions[self.action](self, verbose, dockerv2)
 
 def entry_point(arguments):
     if geteuid() != 0:
         print('This script must be run as root')
         exit(1)
 
+    arguments = arguments[1:]
     opt = configure_argparse().parse_args(arguments)
 
     if not opt.quiet:
