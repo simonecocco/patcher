@@ -13,7 +13,7 @@ class ActionBuilder:
         # Configura i vari servizi
         'configure': lambda self, verbose, dockerv2,: self.__configure_services__(verbose, dockerv2),
         # Fornisce una panoramica dei servizi
-        'sysadmin': lambda self, verbose, dockerv2: self.__show_sysadmin_panel__(verbose, dockerv2)
+        'sysadmin': lambda self, verbose, dockerv2: self.__show_sysadmin_panel__(verbose, dockerv2) # forse da rendere di default se è stato già configurato
     }
 
     # Costruttore della classe
@@ -88,26 +88,3 @@ class ActionBuilder:
         else:
             # Esegue l'azione specificata
             ActionBuilder.actions[self.action](self, verbose, dockerv2)
-
-def entry_point(arguments):
-    if geteuid() != 0:
-        print('This script must be run as root')
-        exit(1)
-
-    arguments = arguments[1:]
-    opt = configure_argparse().parse_args(arguments)
-
-    if not opt.quiet:
-        print_credit()
-
-    action = ActionBuilder(opt.params)
-    run_params = {
-        'verbose': opt.verbose,
-        'dockerv2': opt.docker2,
-        'strict': opt.strict,
-        'all_yes': opt.yes,
-        'no_bkp': opt.no_bkp,
-        'no_docker': opt.no_docker,
-        'hard_build': opt.hard_build
-    }
-    action.run(**run_params)
