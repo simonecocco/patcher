@@ -1,165 +1,72 @@
 # patcher
-> Gestione delle patch per Attacco/Difesa
+> Il migliore amico dei SysAdmin durante le gare di Attacco/Difesa.
 
-# A cosa serve?
-Questo file semplifica la gestione delle patch dei servizi. Esso permette di patchare uno o più file per poi ritornare indietro con le versioni.
-
-# Come si usa?
-Il file deve essere posizonato nella directory home dove son presenti i servizi delle AD
-
-Per invocarlo: `python3 patcher.py`.
-```Shell
-python3 patcher.py args
+## Installazione
+### PyPI
+Patcher può essere installato direttamente da PyPI tramite pip:
+```bash
+pip3 install adpatcher
 ```
 
-# Azioni disponibili
-## Configurazione dei servizi
-
-Quando viene avviato senza argomenti, _patcher_ trova automaticamente e mappa i servizi (porte, nome e percorso) su un file json che utilizzerà ogni volta patcher sarà richiesto.
-
-Per essere considerato servizio, deve riuscire a localizzarlo nel disco e a mapparlo nei servizi attivi di docker.
-
-Quando il servizio è mappato correttamente viene inserito un makefile che consente di gestire il docker in maniera rapida (vedi sezione **makefile**).
-```shell
-python3 patcher.py
+### Installazione dal sorgente
+Oppure può essere scaricato e buildato manualmente:
+```bash
+git clone https://github.com/simonecocco/patcher.git
+cd patcher
+pip3 install .
 ```
 
-Struttura del file json generato
-```javascript
-[
-    {
-        'directory':s.path, //Percorso dove si trovano i sorgenti del servizio
-        'name':s.name, //Nome del servizio
-        'in_port':str(s.port[0]), //Porta interna
-        'out_port':str(s.port[1]), //Porta esterna
-        'alias':s.alias //Nome del servizio (mnemonico)
-    },
-    ...
-]
+## Utilizzo
+Patcher è uno strumento da riga di comando che possiede molteplici funzioni, tra cui:
+* gestione delle patch per i servizi di attacco/difesa
+* fornisce una panoramica al sysadmin dello stato dei servizi
+* semplifica le chiamate a Docker
+> guarda la roadmap per sapere quali sono i prossimi passi.
+
+### Patching di un file
+Per eseguire la patch di un file all'interno di un servizio è sufficiente specificare il `nome del servizio`, il `file originale da sostituire` e `il nuovo file`.
+Qui un esempio:
+Supponiamo un servizio così strutturato:
+```plaintext
+MySuperService/
+    src/
+        Dockerfile
+        app.py
+    docker-compose.yml
+    README.md
 ```
-> Il file json viene generato in `patcher/services.json`
+e supponiamo di avere scoperto una vulnerabilità dentro `MySuperService/src/app.py`.
 
-## Edit dei servizi
-I servizi possono essere editati:
-* manualmente nel file services.json
-* automaticamente usando `python3 patcher.py configure`
+Una volta copiato il file in questione e corretta la vulnerabilità la si vuole applicare per testare il servizio. Sarà sufficiente:
+```bash
+patcher edit MySuperService/src/app.py ./app-fixed.py
+```
+patcher si occuperà di sostituire il file e riavviare il container in autonomia.
 
-### Configure
-Usando configure viene usato un for-loop per iterare fra i servizi e modificare gli alias assegnati. Per terminare l'assegnazione è sufficiente usare CTRL+C.
+### Rimozione di una patch per un file
+Assumendo di avere lo stesso servizio di prima, il sysadmin nota che la patch causa problemi, perciò vuole tornare indietro alla precedente.
 
-## Checkpoint
-Una volta che il servizio funziona correttamente, si può salvare il sorgente del servizio usando il comando `checkpoint`.
-
-Questo comando consente di fare un backup del sorgente da cui recuperare i file nel caso di eventuale eliminazione o rottura del servizio.
-
-### Uso
-```python
-python3 patcher.py alias_servizio
-# oppure
-python3 patcher.py nome_servizio
-# oppure
-python3 patcher.py path_del_servizio
+Per fare ciò si specifica di quante versioni del servizio tornare indietro:
+```bash
+patcher edit MySuperService -1
 ```
 
-## Applicazioni di patch e gestione delle versioni
-Ogni file può essere modificato in avanti (applicando una patch) o all'indietro (ripristinando una versione).
+Da qua verrà riportato indietro il servizio alla versione precedente e di conseguenza riavviato
 
-Prendiamo per esempio un'albero di file di alcuni servizi d'esempio:
-
-Serv1/
--> main.py
--> img/
---> loader.py
-
-Serv2/
--> wifi_loader
--> README.md
-
-### Applicazione di una patch ad un file
-> La sintassi per l'applicazione della patch è `old_file=new_file`. old_file deve essere necessariamente un file esistente all'interno del servizio, non è possibile operare al di fuori.
->
-> Allo stesso modo old_file può essere composto in diversi modi: `absolute_path_to_file` o `<service_alias>/relative_path_to_file` o `relative_path_to_file`.
-> 
-> Il new_file invece sarà un percorso relativo o assoluto del file contenente la patch.
-
-> _Esempio: ho sistemato il file loader.py creando un nuovo file_ `patch_loader.py` _e lo voglio applicare_
-
-```shell
-python3 patcher.py alias_serv1/img/loader.py=../patch_loader.py
+## Modalità SOS
+In caso di problemi gravi, il sysadmin può decidere di riportare il servizio alla versione originale. Per fare ciò, il comando `sos` esegue una catena di azioni volte a ripristinare lo stato del servizio:
+Dopo runnato
+```bash
+patcher sos MySuperService
 ```
-Oppure
-```shell
-python3 patcher.py Serv1/img/loader.py=../patch_loader.py
+1. tutte le modifiche in corso vengono salvate
+2. vengono ripristinati i file originali
+3. il container viene riavviato
+4. le modifiche vengono reinserite per continuare la modifica
+
+## Comando reconfigure
+Con il comando reconfigure è possibile reinizializzare i servizi aggiungendoli manualmente:
+```bash
+patcher reconfigure /my_path/AnotherService/ /my_path/AnotherService2
 ```
-
-> Più file possono essere patchati contemporaneamente, aggiungendo dei file
-
-```shell
-python3 patcher.py old_file1=new_file1 old_file2=new_file2 ...
-```
-
-### Ripristino di una versione precedente
-> Le regole di scrittura di old_file sono uguali alla sezione di patch.
-
-Per il ripristino di un file, è necessario specificare il file richiesto per poi determinarne la versione.
-
-> _Esempio: vogliamo che loader.py torni alla versione pre patch_
-```shell
-python3 patcher.py Serv1/img/loader.py=-1
-```
-
-> _Esempio2: vogliamo che un file torni alla sua versione n.3_
-```shell
-python3 patcher.py file=2
-```
-
-Anche qua è possibile ripristinare più file:
-```shell
-python3 patcher.py file1=target_version1 file2=target_version2 ...
-```
-
-### Opzione speciale: ripristino di un servizio da un checkpoint
-Questa è un'opzione speciale che è presente nella parte di ripristino.
-
-Infatti se si specifica il nome del servizio e la versione (`Serv1=versione`) è possibile ripristinare l'intero servizio a quella versione.
-
-Se però è stata applicata una patch e si vuole preservare il file patchato è possibile escludere quel file (o più file) dal ripristino.
-
-```shell
-python3 patcher.py Serv1=-1 file1_to_preserve file2_to_preserve
-```
-
-In aggiunta a questo, dopo il ripristino possono anche essere eseguite delle patch!!
-
-```shell
-python3 patcher.py Serv1=-1 file1_to_preserve file_to_patch=path_to_patch
-```
-
-# Opzioni disponibili
-* `-q`: si avvia in modo silenzioso, non mostra crediti e versione
-* `--no-bkp`: non esegue il backup del file prima di sostituirlo con la versione di patch
-* `--no-docker`: una volta finita l'operazione con i file non eseguirà la compilazione con docker
-* `--hard-build`: porta giù il container e lo riporta su (comporta l'eliminazione dei dati non salvati). Per utilizzarla è necessario non sia presente `--no-docker`
-* `-v` o `--verbose`: stampa diversi output
-* `-y`: non chiede conferma all'utente su una determinata operazione ma la esegue automaticamente
-* `--strict`: 
-
-# Opzioni makefile
-> Il makefile viene creato all'interno di ogni servizio automaticamente.
-
-## Softreboot del servizio
-Il makefile contiene una scorciatoia per eseguire il soft reboot del servizio.
-
-```shell
-make soft
-```
-> Il comando di prima equivale a `sudo docker-compose build && sudo docker-compose up --build -d`
-
-## Hardreboot del servizio
-> Attenzione, l'hard reboot cancella tutti i dati non salvati in volumi.
-
-```shell
-make hard
-```
-
-> Il comando di prima equivale a `sudo docker-compose build && sudo docker-compose down && sudo docker-compose up --build -d`
+Questo ricercherà tutte le directory dei servizi includendo pure le due 
