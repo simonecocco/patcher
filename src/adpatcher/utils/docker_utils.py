@@ -5,8 +5,8 @@ from adpatcher.utils.file_utils import is_valid_directory
 from adpatcher.utils.path_utils import get_patcher_service_file_path
 from json import dumps, loads
 from adpatcher.services import Service
-from os import getcwd, listdir, abspath
-from os.path import join
+from os import getcwd, listdir
+from os.path import join, abspath
 
 def scan_for_docker_services(verbose: bool=False) -> list:
     def split_docker_output_in_information(row: str) -> dict:
@@ -46,12 +46,14 @@ def scan_for_docker_services_in_filesystem(path: str='', verbose: bool=False) ->
     if path == '':
         path = getcwd() if 'patcher' not in getcwd() else join(getcwd(), '..')
 
-    docker_services_dir = [
-        join(path, candidate_directory)
-        for candidate_directory in listdir(path)
-        if is_valid_directory(join(path, candidate_directory))
-        if 'patcher' not in join(path, candidate_directory)
-    ]
+    docker_services_dir = []
+    
+    for candidate_directory in listdir(path): #TODO bug
+        if candidate_directory is not None and\
+            is_valid_directory(join(path, candidate_directory)) and\
+            'patcher' not in join(path, candidate_directory):
+            docker_services_dir.append(join(path, candidate_directory))
+
     return docker_services_dir
 
 def create_docker_service_objects(verbose: bool=False, dockerv2: bool=False) -> list:
@@ -70,3 +72,9 @@ def load_services_from_json(verbose: bool=False, dockerv2: bool=False) -> list:
     with open(get_patcher_service_file_path(), 'r') as f:
         tmp = '\n'.join(f.readlines())
     return [Service(d['disk_path'], d['port'], d['name'], d['alias'], vulnerable_file=d['vulnerable_file'], dockerv2=dockerv2, verbose=verbose) for d in loads(tmp)]
+
+def select_service_based_on_alias(services_list: list, alias: str) -> int:
+    for service in services_list:
+        if alias in [service.alias, service.name, service.abs_disk_path]:
+            return service
+    return None

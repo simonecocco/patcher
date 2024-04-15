@@ -23,6 +23,9 @@ Patcher è uno strumento da riga di comando che possiede molteplici funzioni, tr
 * semplifica le chiamate a Docker
 > guarda la roadmap per sapere quali sono i prossimi passi.
 
+### Alias dei servizi
+Patcher è un software che si occupa in autonomia di prendere e associare i vari servizi presenti nel disco. Per questo motivo è possibile associare un alias al servizio per poterlo richiamare in maniera più veloce. Guarda la sezione **service** per più informazioni.
+
 ### Patching di un file
 Per eseguire la patch di un file all'interno di un servizio è sufficiente specificare il `nome del servizio`, il `file originale da sostituire` e `il nuovo file`.
 Qui un esempio:
@@ -42,6 +45,11 @@ Una volta copiato il file in questione e corretta la vulnerabilità la si vuole 
 patcher edit MySuperService/src/app.py ./app-fixed.py
 ```
 patcher si occuperà di sostituire il file e riavviare il container in autonomia.
+
+In caso di differenti file da modificare in un unico colpo sarà sufficiente specificare più file, con i loro relativi servizi:
+```bash
+patcher edit MySuperService/src/app.py app_fixed.py MySuperService/src/Dockerfile ../new_dockerfile AnotherSuperService/README.md modified_readme.md
+```
 
 ### Rimozione di una patch per un file
 Assumendo di avere lo stesso servizio di prima, il sysadmin nota che la patch causa problemi, perciò vuole tornare indietro alla precedente.
@@ -64,9 +72,37 @@ patcher sos MySuperService
 3. il container viene riavviato
 4. le modifiche vengono reinserite per continuare la modifica
 
+E' possibile applicare la modalità sos infinite volte.
+
 ## Comando reconfigure
 Con il comando reconfigure è possibile reinizializzare i servizi aggiungendoli manualmente:
 ```bash
 patcher reconfigure /my_path/AnotherService/ /my_path/AnotherService2
 ```
-Questo ricercherà tutte le directory dei servizi includendo pure le due 
+Questo ricercherà tutte le directory dei servizi includendo pure le due specificate
+
+## Comando fix
+Il comando fix ha la possibilità di gestire le modifiche del servizio in maniera rapida.
+
+In particolare:
+* consente di suggerire una correzione automatica per una riga dove è presente il bug
+```bash
+patcher fix MySuperService/file 43-53
+```
+> Suggerisci un fix dalla linea 43 alla 53 del file `MySuperService/file`
+
+* Consente di segnare come fixato il servizio:
+```bash
+patcher fix MySuperService
+```
+
+## Comando sysadmin
+Il comando sysadmin mostra alcune statistiche sul servzio:
+```bash
+patcher sysadmin [INFO] <service name/alias/path>
+```
+
+Dove `INFO` può essere:
+* spazio sul disco - `disk`
+* utilizzo ram - `ram`
+* cpu utilizata - `cpu`

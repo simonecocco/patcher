@@ -5,7 +5,7 @@ from adpatcher.docker_services import *
 from adpatcher.utils import call_process
 from json import loads
 from os import getcwd, geteuid
-from adpatcher.log import output, error, warning
+from adpatcher.utils.stdout_utils import output, error, warning
 from sys import exit
 
 class ActionBuilder:

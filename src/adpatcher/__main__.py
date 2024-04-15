@@ -1,16 +1,18 @@
 from sys import argv
 from argparse import ArgumentParser
 from adpatcher.credits import print_credit
-from adpatcher.utils import *
+from adpatcher.utils.docker_utils import *
+from adpatcher.utils.file_utils import is_valid_file
+from adpatcher.utils.stdout_utils import error, warning
 
-ACTIONS = {
-    'reconfigure': lambda: None,
-    'sos': lambda: None,
-    'fixed': lambda: None,
-    'service': lambda: None,
-    'edit': lambda: None,
-    'sysadmin': lambda: None,
-}
+ACTIONS = [
+    'reconfigure'
+    'sos'
+    'fix'
+    'service'
+    'edit'
+    'sysadmin'
+]
 
 def main() -> None:
     aparse: ArgumentParser = ArgumentParser('patcher')
@@ -35,4 +37,27 @@ def main() -> None:
         if is_valid_file(get_patcher_service_file_path())\
         else create_docker_service_objects(args.verbose, dockerv2=args.docker2)
 
-    ACTIONS.get(args.params[0], lambda *args, **argk: print('Opzione inesistente'))()
+    user_action: str = args.params[0]
+    if user_action not in ACTIONS:
+        print(f'Errore: azione non riconosciuta: {user_action}')
+        exit(1)
+    elif user_action == 'reconfigure':
+        pass
+    elif user_action == 'sos':
+        for target_service_alias in args.params[1:]:
+            current_selected_service: Service = select_service_based_on_alias(services, target_service_alias)
+            if current_selected_service is None:
+                error(f'Servizio non trovato: {target_service_alias}')
+                continue
+            warning(f'Servizio {current_selected_service.alias} in modalità sos')
+            current_selected_service.sos()
+            output(f'Servizio {current_selected_service.alias} in modalità sos completato', verbose=args.verbose)
+    elif user_action == 'fix':
+        pass
+    elif user_action == 'service':
+        pass
+    elif user_action == 'edit':
+        pass
+    elif user_action == 'sysadmin':
+        pass
+
