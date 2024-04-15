@@ -8,3 +8,4 @@ src/adpatcher.egg-info
 adpatcher.egg-info
 build
 services.json
+venv
