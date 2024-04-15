@@ -48,14 +48,7 @@ def git_change_branch(branch_name: str, ) -> None:
     git_apply_stash()
 
 def git_merge_into_main_branch() -> None:
-    call_process('git', ['merge', GIT_MASTER_BRANCH_NAME, 'quarantine'])
+    call_process('git', ['merge', '-X', 'theirs', GIT_MASTER_BRANCH_NAME, 'quarantine', '--no-commit'])
 
-def check_for_uncompleted_merges() -> list:
-    raw_text, _ = call_process('git', ['status', '-s'])
-    if len(raw_text) == 0:
-        return []
-    return [file_name.split(' ', maxsplit=1)[1] for file_name in raw_text.strip().split('\n')]
-
-def solve_merge_conflicts() -> None:
-    # TODO implementa la risoluzione automatica dei conflitti
-    call_process('git', ['mergetool'])
+def git_delete_branch(branch_name: str, force_deletion_of_branch: bool=False) -> None:
+    call_process('git', ['branch', '-d' if not force_deletion_of_branch else '-D', branch_name])

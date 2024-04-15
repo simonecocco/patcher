@@ -61,7 +61,10 @@ class Service:
         with self:
             create_new_git_branch('quarantine')
 
-    def apply_patch(self, patches_to_apply_list: list, atomic: bool=False) -> bool:
+    def apply_patch(self, patch_to_apply: tuple) -> bool:
+        return self.apply_list_of_patches([patch_to_apply], atomic=True)
+
+    def apply_list_of_patches(self, patches_to_apply_list: list, atomic: bool=False) -> bool:
         if self.vulnerable_file == 'UNKNOWN':
             self.create_quarantine_zone()
             self.vulnerable_file = patches_to_apply_list
@@ -91,11 +94,8 @@ class Service:
 
     def close_quarantine() -> None:
         with self:
-            git_merge_into_main_branch()
-            not_merged_files: list = check_for_uncompleted_merges()
-            if len(not_merged_files) > 0:
-                solve_merge_conflicts()
-            git_update_file()
-            git_commit('Merged quarantine')
             git_change_branch(GIT_MASTER_BRANCH_NAME)
-            self.vulnerable_file = 'UNKNOWN'
+            git_merge_into_main_branch()
+            git_commit('Closed quarantine')
+            git_delete_branch('quarantine')
+
