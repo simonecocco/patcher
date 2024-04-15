@@ -1,5 +1,7 @@
 from adpatcher.makefile import Makefile
-from adpatcher.utils import *
+from adpatcher.utils.file_utils import is_valid_file
+from adpatcher.utils.stdout_utils import warning
+from adpatcher.utils.git_utils import *
 
 class Service:
     __slots__: list = [
@@ -59,15 +61,22 @@ class Service:
         with self:
             create_new_git_branch('quarantine')
 
-    def __setitem__(self, original_file_path: str, new_file_path: str) -> None:
+    def apply_patch(self, patches_to_apply_list: list, atomic: bool=False) -> bool:
         if self.vulnerable_file == 'UNKNOWN':
             self.create_quarantine_zone()
-            self.vulnerable_file = original_file_path
+            self.vulnerable_file = patches_to_apply_list
         with self:
-            call_process('rm', [original_file_path])
-            call_process('cp', [new_file_path, original_file_path])
+            for patch_to_apply in patches_to_apply_list:
+                original_file_path, new_file_path = patch_to_apply
+                if not is_valid_file(original_file_path) or not is_valid_file(new_file_path):
+                    warning(f'Original file path: {original_file_path} or new file path: {new_file_path} is not valid.')
+                    if atomic:
+                        return False
+                call_process('rm', [original_file_path])
+                call_process('cp', [new_file_path, original_file_path])
             git_update_file()
             git_commit()
+            return True
 
     def __sub__(self, version: int) -> None:
         with self:
