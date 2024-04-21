@@ -1,6 +1,6 @@
-from adpatcher.utils.stdout_utils import error, output
+from adpatcher.utils.stdout_utils import error, output, warning
 from adpatcher.utils.process_utils import call_process
-from adpatcher.utils.permission_utils import is_root_user
+from adpatcher.utils.permission_utils import is_root_user, is_docker_user
 from adpatcher.utils.file_utils import is_valid_directory
 from adpatcher.utils.path_utils import get_patcher_service_file_path
 from json import dumps, loads
@@ -10,7 +10,7 @@ from os.path import join, abspath
 
 def scan_for_docker_services(verbose: bool=False) -> list:
     def split_docker_output_in_information(row: str) -> dict:
-        s: str = row.split(',')
+        s: list[str] = row.split(',')
         return {
             'id':s[0].split(':')[1],
             'name':s[1].split(':')[1],
@@ -18,8 +18,8 @@ def scan_for_docker_services(verbose: bool=False) -> list:
             'ports':s[3].split('PORTS:')[1]
         }
 
-    if not is_root_user():
-        error('Devi essere root per eseguire questa operazione')
+    if not is_root_user() and not is_docker_user():
+        error('Devi essere root o abilitato a docker per eseguire questa operazione')
         exit(1)
 
     output('Caricamento servizi', verbose=verbose)
@@ -56,15 +56,44 @@ def scan_for_docker_services_in_filesystem(path: str='', verbose: bool=False) ->
 
     return docker_services_dir
 
-def create_docker_service_objects(verbose: bool=False, dockerv2: bool=False) -> list:
+def create_docker_service_objects(path: str='', verbose: bool=False, dockerv2: bool=False) -> list:
     docker_active_services: list = sorted(scan_for_docker_services(verbose), key=lambda service: service['name'])
-    docker_disk_services: list = sorted(scan_for_docker_services_in_filesystem(None, verbose))
-    complete_service_list: list = [
-        Service(abspath(disk_directory_path), service['ports'], service['name'], disk_directory_path.lower(), dockerv2=dockerv2, verbose=verbose)
-        for (service, disk_directory_path) in zip(docker_active_services, docker_disk_services)
-    ]
+    docker_disk_services: list = sorted(scan_for_docker_services_in_filesystem(path=path, verbose=verbose), key=lambda service: service.split('/')[-1])
+    complete_service_list: list[Service] = []
+    for docker_disk_service in docker_disk_services:
+        output(f'Servizio trovato su disco: {docker_disk_service}', True)
+        candidates: list = [
+            docker_active_service
+            for docker_active_service in docker_active_services
+            if docker_disk_service.split('/')[-1].lower() in docker_active_service['name'].lower()
+        ]
+        if len(candidates) > 1:
+            warning('Trovati molteplici candidati, seleziona quello giusto')
+            for i, candidate in enumerate(candidates):
+                warning(f'{i} {candidate["name"]} {candidate["ports"]}',)
+            selected: int = int(input(f'Numero [0..{len(candidates)-1}] ' ))
+            complete_service_list.append(
+                Service(
+                    abspath(docker_disk_service),
+                    candidates[selected]['ports'],
+                    candidates[selected]['name'],
+                    docker_disk_service.lower(),
+                    dockerv2=dockerv2, verbose=verbose
+                )
+            )
+        else:
+            complete_service_list.append(
+                Service(
+                    abspath(docker_disk_service),
+                    candidates[0]['ports'],
+                    candidates[0]['name'],
+                    docker_disk_service.lower(),
+                    dockerv2=dockerv2, verbose=verbose
+                )
+            )
+
     with open(get_patcher_service_file_path(), 'w') as f:
-        f.write(dumps([service.to_dict() for service in complete_service_list]))
+        f.write(dumps([service.__dict__() for service in complete_service_list]))
     output(f'Servizi mappati e salvati in {get_patcher_service_file_path()}', verbose)
     return complete_service_list
 
@@ -73,7 +102,7 @@ def load_services_from_json(verbose: bool=False, dockerv2: bool=False) -> list:
         tmp = '\n'.join(f.readlines())
     return [Service(d['disk_path'], d['port'], d['name'], d['alias'], vulnerable_file=d['vulnerable_file'], dockerv2=dockerv2, verbose=verbose) for d in loads(tmp)]
 
-def select_service_based_on_alias(services_list: list, alias: str) -> int:
+def select_service_based_on_alias(services_list: list, alias: str) -> Service|None:
     for service in services_list:
         if alias in [service.alias, service.name, service.abs_disk_path]:
             return service
