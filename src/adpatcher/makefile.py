@@ -1,6 +1,7 @@
 from os.path import exists
-import adpatcher.utils as utils
+from adpatcher.utils.path_utils import get_makefile_path_for_service
 from adpatcher.utils.stdout_utils import output, debug, warning
+from adpatcher.utils.process_utils import call_process
 from os.path import dirname
 
 makefile_content: str = '''all: build up
@@ -38,7 +39,7 @@ class Makefile:
 		:param create_if_not_exist 
 		"""
 		self.verbose: bool = verbose
-		self.service_mf_path: str = utils.get_makefile_path_for_service(service_path)
+		self.service_mf_path: str = get_makefile_path_for_service(service_path)
 		if not exists(self.service_mf_path):
 			with open(self.service_mf_path, 'w') as mkfile_tmp:
 				output(f'Creo makefile in {self.service_mf_path} (v2? {docker_v2})', verbose)
@@ -48,7 +49,7 @@ class Makefile:
 					mkfile_tmp.write(makefile_content.replace('docker-compose', 'docker compose'))
 
 	def __callmake__(self, target):
-		out, err = utils.call_process('make', ['-C', dirname(self.service_mf_path), target])
+		out, err = call_process('make', ['-C', dirname(self.service_mf_path), target])
 		print(out, err)
 		if len(out) > 0:
 			debug(out, self.verbose)
