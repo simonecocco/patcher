@@ -7,6 +7,11 @@ from adpatcher.utils.file_utils import is_valid_file
 from adpatcher.utils.stdout_utils import error, output
 from adpatcher.utils.service_utils import *
 
+def check_min_len(params: list, min_len: int) -> None:
+    if len(params) < min_len:
+        error(f'Numero minimo di parametri non rispettato. Attesi {min_len}, ricevuti {len(params)}')
+        exit(1)
+
 def execute_configure_action(args) -> None:
     if len(args.params) == 1:
         create_docker_service_objects(path=getcwd(), verbose=args.verbose, dockerv2=args.docker2)
@@ -20,8 +25,14 @@ def execute_sos_action(args, services: list[Service]) -> None:
 def execute_fix_action(args, services: list[Service]) -> None:
     pass
 
-def execute_service_action(args, services: list[Service]) -> None:
-    pass
+def execute_services_action(args, services: list[Service]) -> None:
+    check_min_len(args.params, 2)
+    sub_action: str = args.params[1]
+    if sub_action == 'list':
+        for i, service in enumerate(services):
+            print(f'{i})', end=' ')
+            service.pretty_print()
+            print()
 
 def execute_edit_action(args, services: list[Service]) -> None:
     pass
@@ -36,8 +47,8 @@ def execute_action(args, services: list[Service]) -> None:
         execute_sos_action(args, services)
     elif user_action == 'fix':
         execute_fix_action(args, services)
-    elif user_action == 'service':
-        execute_service_action(args, services)
+    elif user_action == 'services':
+        execute_services_action(args, services)
     elif user_action == 'edit':
         execute_edit_action(args, services)
     elif user_action == 'sysadmin':
