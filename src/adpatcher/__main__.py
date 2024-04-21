@@ -1,6 +1,7 @@
 from os import getcwd
 from sys import argv
 from argparse import ArgumentParser
+from webbrowser import get
 from adpatcher.credits import print_credit
 from adpatcher.utils.docker_utils import *
 from adpatcher.utils.file_utils import is_valid_file
@@ -33,6 +34,10 @@ def execute_services_action(args, services: list[Service]) -> None:
             print(f'{i})', end=' ')
             service.pretty_print()
             print()
+    elif sub_action == 'tarball':
+        for service in services:
+            output(f'Creo tarball per {service.name}', args.verbose)
+            service.tarball(getcwd())
 
 def execute_edit_action(args, services: list[Service]) -> None:
     pass
