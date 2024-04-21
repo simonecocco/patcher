@@ -4,7 +4,7 @@ setup(
     name='adpatcher',
     version='3.0.0',
     packages=find_packages(),
-    install_requires=['colorama==0.4.6'],
+    install_requires=['colorama==0.4.6', 'rich'],
     entry_points = {
         'console_scripts': ['patcher = adpatcher.__main__:main']
     }
