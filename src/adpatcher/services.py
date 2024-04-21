@@ -2,6 +2,7 @@ from adpatcher.makefile import Makefile
 from adpatcher.utils.file_utils import is_valid_file
 from adpatcher.utils.stdout_utils import warning
 from adpatcher.utils.git_utils import *
+from colorama import Fore, Back, Style
 from os import chdir, getcwd
 
 class Service:
@@ -99,4 +100,7 @@ class Service:
             git_merge_into_main_branch()
             git_commit('Closed quarantine')
             git_delete_branch('quarantine')
+
+    def pretty_print(self):
+        print(f'{Fore.GREEN if self.vulnerable_file == "UNKNOWN" else Fore.RED}{self.name} ({self.alias}) at {self.abs_disk_path} with port {self.port}{Style.RESET_ALL}')
 
