@@ -1,18 +1,50 @@
+from os import getcwd
 from sys import argv
 from argparse import ArgumentParser
 from adpatcher.credits import print_credit
 from adpatcher.utils.docker_utils import *
 from adpatcher.utils.file_utils import is_valid_file
-from adpatcher.utils.stdout_utils import error, warning
+from adpatcher.utils.stdout_utils import error, output
+from adpatcher.utils.service_utils import *
 
-ACTIONS = [
-    'reconfigure'
-    'sos'
-    'fix'
-    'service'
-    'edit'
-    'sysadmin'
-]
+def execute_configure_action(args) -> None:
+    if len(args.params) == 1:
+        create_docker_service_objects(path=getcwd(), verbose=args.verbose, dockerv2=args.docker2)
+    else:
+        print('Non sono supportate altre opzioni... per ora')
+        exit(1)
+
+def execute_sos_action(args, services: list[Service]) -> None:
+    pass
+
+def execute_fix_action(args, services: list[Service]) -> None:
+    pass
+
+def execute_service_action(args, services: list[Service]) -> None:
+    pass
+
+def execute_edit_action(args, services: list[Service]) -> None:
+    pass
+
+def execute_sysadmin_action(args, services: list[Service]) -> None:
+    pass
+
+def execute_action(args, services: list[Service]) -> None:
+    user_action: str = args.params[0]
+    
+    if user_action == 'sos':
+        execute_sos_action(args, services)
+    elif user_action == 'fix':
+        execute_fix_action(args, services)
+    elif user_action == 'service':
+        execute_service_action(args, services)
+    elif user_action == 'edit':
+        execute_edit_action(args, services)
+    elif user_action == 'sysadmin':
+        execute_sysadmin_action(args, services)
+    else:
+        print('Azione non riconosciuta')
+        exit(1)
 
 def main() -> None:
     aparse: ArgumentParser = ArgumentParser('patcher')
@@ -28,36 +60,27 @@ def main() -> None:
                         help='Configura patcher per lavorare con docker compose v2 (di default lavora con la versione 1)')
     aparse.add_argument('-N', '--no-docker', dest='no_docker', action='store_true',
                         help='Non esegue operazioni su docker')
+    aparse.add_argument('-A', '--atomic', dest='atomic', action='store_true',
+                        help='Esegue le operazioni in modo atomico')
     args = aparse.parse_args(argv[1:])
 
     if not args.quiet:
         print_credit()
 
+    if len(args.params) == 0:
+        error('Nessuna azione specificata')
+        exit(1)
+
+    if not is_valid_file(get_patcher_service_file_path()) and args.params[0] != 'configure':
+        error('Primo avvio: esegui `patcher configure` per configurare i servizi')
+        exit(0)
+
+    if args.params[0] == 'configure':    
+        execute_configure_action(args)
+        exit(0)
+    
     services: list = load_services_from_json(args.docker2)\
         if is_valid_file(get_patcher_service_file_path())\
         else create_docker_service_objects(args.verbose, dockerv2=args.docker2)
 
-    user_action: str = args.params[0]
-    if user_action not in ACTIONS:
-        print(f'Errore: azione non riconosciuta: {user_action}')
-        exit(1)
-    elif user_action == 'reconfigure':
-        pass
-    elif user_action == 'sos':
-        for target_service_alias in args.params[1:]:
-            current_selected_service: Service = select_service_based_on_alias(services, target_service_alias)
-            if current_selected_service is None:
-                error(f'Servizio non trovato: {target_service_alias}')
-                continue
-            warning(f'Servizio {current_selected_service.alias} in modalità sos')
-            current_selected_service.sos()
-            output(f'Servizio {current_selected_service.alias} in modalità sos completato', verbose=args.verbose)
-    elif user_action == 'fix':
-        pass
-    elif user_action == 'service':
-        pass
-    elif user_action == 'edit':
-        pass
-    elif user_action == 'sysadmin':
-        pass
-
+    execute_action(args, services)
