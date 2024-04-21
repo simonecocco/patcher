@@ -2,6 +2,7 @@ from adpatcher.makefile import Makefile
 from adpatcher.utils.file_utils import is_valid_file
 from adpatcher.utils.stdout_utils import warning
 from adpatcher.utils.git_utils import *
+from os import chdir, getcwd
 
 class Service:
     __slots__: list = [
@@ -19,9 +20,9 @@ class Service:
         self.port: tuple = port
         self.name: str = name
         self.alias: str = alias
-        self.service_makefile: Makefile(self.abs_disk_path, docker_v2=dockerv2, verbose=verbose)
+        self.service_makefile: Makefile = Makefile(self.abs_disk_path, docker_v2=dockerv2, verbose=verbose)
         self.vulnerable_file: str = vulnerable_file
-        self.current_working_directory: str = os.getcwd()
+        self.current_working_directory: str = getcwd()
         with self:
             git_config()
             set_main_git_branch_name()
@@ -67,7 +68,7 @@ class Service:
     def apply_list_of_patches(self, patches_to_apply_list: list, atomic: bool=False) -> bool:
         if self.vulnerable_file == 'UNKNOWN':
             self.create_quarantine_zone()
-            self.vulnerable_file = patches_to_apply_list
+            self.vulnerable_file = patches_to_apply_list[0] # TODO
         with self:
             for patch_to_apply in patches_to_apply_list:
                 original_file_path, new_file_path = patch_to_apply
@@ -92,7 +93,7 @@ class Service:
             self.service_makefile('up')
             git_change_branch('quarantine')
 
-    def close_quarantine() -> None:
+    def close_quarantine(self) -> None:
         with self:
             git_change_branch(GIT_MASTER_BRANCH_NAME)
             git_merge_into_main_branch()
