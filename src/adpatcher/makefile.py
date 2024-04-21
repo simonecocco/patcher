@@ -4,23 +4,28 @@ from adpatcher.utils.stdout_utils import output, debug, warning
 from adpatcher.utils.process_utils import call_process
 from os.path import dirname
 
+# TODO da modificare shadow con paused
+
 makefile_content: str = '''all: build up
 
 build:
-\tsudo docker-compose build
+\tdocker-compose build
 
 up: build
-\tsudo docker-compose up --build -d
+\tdocker-compose up --build -d
+
+shadow:
+\tdocker-compose up -d
 
 down:
-\tsudo docker-compose down
+\tdocker-compose down
 
 soft: build up
 
 hard: build down up
 
 log:
-\tsudo docker-compose logs
+\tdocker-compose logs
 
 '''
 
