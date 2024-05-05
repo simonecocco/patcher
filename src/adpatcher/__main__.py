@@ -72,7 +72,10 @@ def execute_services_action(args, services: list[Service]) -> None:
         write_services_on_json(services, args.verbose)
 
 def execute_edit_action(args, services: list[Service]) -> None:
-    pass
+    check_min_len(args.params, 3)
+    service_name: str = args.params[2]
+    target_service: Union[Service, None] = get_service_alias_from_path(services, service_name)
+    
 
 # patcher sysadmin shadow <service name> <up time[seconds]> <down time[seconds]>
 # patcher sysadmin info
