@@ -9,3 +9,4 @@ adpatcher.egg-info
 build
 services.json
 venv
+.vscode
