@@ -8,6 +8,7 @@ from adpatcher.utils.docker_utils import *
 from adpatcher.utils.file_utils import is_valid_file
 from adpatcher.utils.stdout_utils import error, output, warning, debug
 from adpatcher.utils.service_utils import *
+from adpatcher.utils.permission_utils import is_docker_user, add_user_to_docker
 from rich.live import Live
 
 def check_min_len(params: list, min_len: int) -> None:
@@ -16,8 +17,8 @@ def check_min_len(params: list, min_len: int) -> None:
         exit(1)
 
 # patcher configure
-def execute_configure_action(args) -> None:
-    if len(args.params) == 1:
+def execute_configure_action(args, before: bool=False) -> None:
+    if len(args.params) == 1 or before:
         create_docker_service_objects(path=getcwd(), verbose=args.verbose, dockerv2=args.docker2)
     else:
         print('Non sono supportate altre opzioni... per ora')
@@ -71,11 +72,13 @@ def execute_services_action(args, services: list[Service]) -> None:
         output(f'Alias del servizio {target_service.name} cambiato in {new_alias}', args.verbose)
         write_services_on_json(services, args.verbose)
 
-def execute_edit_action(args, services: list[Service]) -> None:
+def execute_edit_action(args, services: list[Service]) -> None: # TODO
     check_min_len(args.params, 3)
-    service_name: str = args.params[2]
-    target_service: Union[Service, None] = get_service_alias_from_path(services, service_name)
+
+    couples = [(args.params[i], args.params[i+1]) for i in range(1, len(args.params), 2)]
+    print(couples)
     
+        
 
 # patcher sysadmin shadow <service name> <up time[seconds]> <down time[seconds]>
 # patcher sysadmin info
@@ -152,12 +155,11 @@ def main() -> None:
         error('Nessuna azione specificata')
         exit(1)
 
-    if not is_valid_file(get_patcher_service_file_path()) and args.params[0] != 'configure':
-        error('Primo avvio: esegui `patcher configure` per configurare i servizi')
-        exit(0)
+    if not is_docker_user():
+        add_user_to_docker()
 
-    if args.params[0] == 'configure':    
-        execute_configure_action(args)
+    if not is_valid_file(get_patcher_service_file_path()) or args.params[0] == 'configure':    
+        execute_configure_action(args, before=args.params[0] != 'configure')
         exit(0)
     
     services: list = load_services_from_json(args.docker2)\
