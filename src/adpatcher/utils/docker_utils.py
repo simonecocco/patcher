@@ -1,3 +1,4 @@
+from re import split
 from adpatcher.utils.stdout_utils import error, output, warning
 from adpatcher.utils.process_utils import call_process
 from adpatcher.utils.permission_utils import is_root_user, is_docker_user
@@ -57,6 +58,12 @@ def scan_for_docker_services_in_filesystem(path: str='', verbose: bool=False) ->
     return docker_services_dir
 
 def join_docker_services_with_their_disk_path(docker_active_services, docker_disk_services, dockerv2: bool=False, verbose=False) -> list[Service]:
+    def split_ports(ports: str) -> list:
+        external, internal = ports.split('->', maxsplit=1)
+        port: str = external.split(':')[-1]
+        internal_port, protocol = internal.split('/')
+        return [port, internal_port, protocol]
+
     complete_service_list: list[Service] = []
     for docker_disk_service in docker_disk_services:
         output(f'Servizio trovato su disco: {docker_disk_service}', True)
@@ -73,9 +80,9 @@ def join_docker_services_with_their_disk_path(docker_active_services, docker_dis
             complete_service_list.append(
                 Service(
                     abspath(docker_disk_service),
-                    candidates[selected]['ports'],
-                    candidates[selected]['name'],
-                    docker_disk_service.lower(),
+                    *split_ports(candidates[selected]['ports']),
+                    candidates[selected]['name'], # type: ignore
+                    docker_disk_service.lower(), # type: ignore
                     dockerv2=dockerv2, verbose=verbose
                 )
             )
@@ -83,9 +90,9 @@ def join_docker_services_with_their_disk_path(docker_active_services, docker_dis
             complete_service_list.append(
                 Service(
                     abspath(docker_disk_service),
-                    candidates[0]['ports'],
-                    candidates[0]['name'],
-                    docker_disk_service.lower(),
+                    *split_ports(candidates[0]['ports']),
+                    candidates[0]['name'], # type: ignore
+                    docker_disk_service.lower(), # type: ignore
                     dockerv2=dockerv2, verbose=verbose
                 )
             )
@@ -109,7 +116,7 @@ def create_docker_service_objects(path: str='', verbose: bool=False, dockerv2: b
 def load_services_from_json(verbose: bool=False, dockerv2: bool=False) -> list:
     with open(get_patcher_service_file_path(), 'r') as f:
         tmp = '\n'.join(f.readlines())
-    return [Service(d['disk_path'], d['port'], d['name'], d['alias'], vulnerable_file=d['vulnerable_file'], dockerv2=dockerv2, verbose=verbose) for d in loads(tmp)]
+    return [Service(d['disk_path'], d['port'], d['internal_port'], d['protocol'], d['name'], d['alias'], vulnerable_file=d['vulnerable_file'], dockerv2=dockerv2, verbose=verbose) for d in loads(tmp)]
 
 def select_service_based_on_alias(services_list: list, alias: str) -> Service|None:
     for service in services_list:

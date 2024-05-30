@@ -1,3 +1,6 @@
+from asyncore import file_dispatcher
+from email.policy import default
+from struct import pack
 from time import sleep
 from typing import Union
 from os import getcwd, stat
@@ -10,6 +13,7 @@ from adpatcher.utils.stdout_utils import error, output, warning, debug
 from adpatcher.utils.service_utils import *
 from adpatcher.utils.permission_utils import is_docker_user, add_user_to_docker
 from rich.live import Live
+from re import match, Pattern
 
 def check_min_len(params: list, min_len: int) -> None:
     if len(params) < min_len:
@@ -42,8 +46,35 @@ def execute_sos_action(args, services: list[Service]) -> None:
         warning(f'{service_name} in modalità emergenza')
         service.sos()
 
+# patcher fix {path/alias/port} n
+# patcher fix {path/alias/port}
 def execute_fix_action(args, services: list[Service]) -> None:
-    pass
+    check_min_len(args.params, 2)
+    target_service: Service|None = select_service_by_alias(services, args.params[1])
+    if target_service is None:
+        error('Servizio non trovato')
+        exit(1)
+    if len(args.params) == 2:
+        if not args.auto_confirm:
+            warning('Si vuole chiudere la quarantena? [Y/n] ')
+            resp: str = input()
+            if resp != 'Y':
+                output('Operazione annullata', args.verbose)
+                exit(0)
+        target_service.close_quarantine()
+    else:
+        try:
+            rollback_n: int = int(args.params[2])
+        except:
+            error('Numero di rollback non valido')
+            exit(1)
+        if rollback_n == 0:
+            output('Sei già nel commit attuale', args.verbose)
+            exit(0)
+        if rollback_n < 0:
+            rollback_n = -rollback_n
+
+        target_service.
 
 # patcher services list
 # patcher services tarball
@@ -72,12 +103,36 @@ def execute_services_action(args, services: list[Service]) -> None:
         output(f'Alias del servizio {target_service.name} cambiato in {new_alias}', args.verbose)
         write_services_on_json(services, args.verbose)
 
+# patcher edit orig_file_path new_file
+# patcher edit alias@relative_path new_file
+# patcher edit port:relative_path new_file
 def execute_edit_action(args, services: list[Service]) -> None: # TODO
     check_min_len(args.params, 3)
 
     couples = [(args.params[i], args.params[i+1]) for i in range(1, len(args.params), 2)]
-    print(couples)
-    
+    target_services: dict = {}
+    for couple in couples:
+        if not is_valid_file(couple[1]):
+            if args.atomic:
+                error(f'File {couple[1]} non valido')
+                exit(1)
+            else:
+                warning(f'File {couple[1]} non valido')
+                continue
+        result = get_service_alias_from_path(services, couple[0])
+        if result is None:
+            if args.atomic:
+                error(f'Servizio non trovato')
+                exit(1)
+            else:
+                warning(f'Servizio non trovato')
+                continue
+        service, file_path = result
+        target_services[service] = target_services.get(service, []) + [(file_path, couple[1])]
+            
+    for service, service_couples in target_services.items():
+        output(f'Applico le modifiche al servizio {service.name}', args.verbose)
+        service.apply_list_of_patches(service_couples, atomic=args.atomic)
         
 
 # patcher sysadmin shadow <service name> <up time[seconds]> <down time[seconds]>

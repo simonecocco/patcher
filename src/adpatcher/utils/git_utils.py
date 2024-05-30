@@ -9,9 +9,10 @@ def git_config(username: str='Patcher', email: str='patcher@localhost') -> None:
     :param username: nome utente
     :param email: email
     """
+    call_process('git', ['init'])
     call_process('git', ['config', 'user.name', username])
     call_process('git', ['config', 'user.email', email])
-
+    
 def set_main_git_branch_name() -> None:
     call_process('git', ['branch', '-M', GIT_MASTER_BRANCH_NAME])
 
