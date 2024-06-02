@@ -19,7 +19,8 @@ class Service:
         'service_makefile',
         'vulnerable_file',
         'current_working_directory',
-        'protocol'
+        'protocol',
+        'verbose'
     ]
 
     def __init__(self, abs_disk_path: str, port: str, internal_port: str, protocol: str, name: str, alias: str, vulnerable_file: str='UNKNOWN', dockerv2: bool=False, verbose: bool=False):
@@ -42,6 +43,7 @@ class Service:
                 git_config()
                 set_main_git_branch_name()
                 create_copy_of_original_service()
+        self.verbose: bool = verbose
 
 
     def __dict__(self):
@@ -133,3 +135,18 @@ class Service:
 
     def tarball(self, tarball_directory_output: str) -> None:
         call_process('tar', ['-czvf', f'{tarball_directory_output}/{self.name}.tar.gz', self.abs_disk_path])
+
+    def shadow_mode(self, downtime, uptime) -> None:
+        output(f'Shadow mode for {self.name} ({self.alias}). To stop press CTRL+C', verbose=verbose)
+        try:
+            while True:
+                sleep(int(uptime))
+                warning('Pausa del servizio')
+                self.service_makefile('shadow')
+                sleep(int(downtime))
+                warning('Resume del servizio')
+                self.service_makefile('unshadow')
+        except KeyboardInterrupt:
+            output(f'Stopping shadow mode for {self.name} ({self.alias})', verbose=verbose)
+            output('Setting service to up', verbose=verbose)
+            self.service_makefile('unshadow')
