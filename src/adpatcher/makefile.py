@@ -15,7 +15,10 @@ up: build
 \tdocker-compose up --build -d
 
 shadow:
-\tdocker-compose up -d
+\tdocker-compose pause
+
+unshadow:
+\tdocker-compose unpause
 
 down:
 \tdocker-compose down
@@ -76,6 +79,14 @@ class Makefile:
 
 	def docker_softreboot(self):
 		out, err = self.__callmake__('soft')
+		return out, err
+
+	def docker_shadow(self):
+		out, err = self.__callmake__('shadow')
+		return out, err
+
+	def docker_unshadow(self):
+		out, err = self.__callmake__('unshadow')
 		return out, err
 
 	def __call__(self, action: str):
