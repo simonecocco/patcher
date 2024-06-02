@@ -1,5 +1,5 @@
 from typing import Union
-from os import getcwd, stat
+from os import getcwd, stat, environ
 from sys import argv
 from argparse import ArgumentParser
 from adpatcher.credits import print_credit
@@ -133,6 +133,7 @@ def execute_edit_action(args, services: list[Service]) -> None: # TODO
 
 # patcher sysadmin shadow <service name> <up time[seconds]> <down time[seconds]>
 # patcher sysadmin info
+# patcher sysadmin limit <service name> {ram, cpu, disk} <value>
 def execute_sysadmin_action(args, services: list[Service]) -> None:
     check_min_len(args.params, 2)
     sub_action: str = args.params[1]
@@ -199,7 +200,7 @@ def main() -> None:
                         help='Esegue le operazioni in modo atomico')
     args = aparse.parse_args(argv[1:])
 
-    if not args.quiet:
+    if not args.quiet and environ.get('QUIET', '1') != '1':
         print_credit()
 
     if len(args.params) == 0:
