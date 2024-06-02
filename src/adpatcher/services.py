@@ -129,7 +129,7 @@ class Service:
             git_delete_branch('quarantine')
 
     def pretty_print(self):
-        print(f'{Fore.GREEN if self.vulnerable_file == "UNKNOWN" else Fore.RED}{self.name} ({self.alias}) at {self.abs_disk_path} with port {self.port}{Style.RESET_ALL}')
+        print(f'{Fore.GREEN if self.vulnerable_file == "UNKNOWN" else Fore.RED}{self.name} ({self.alias})\n\tat {self.abs_disk_path}\n\twith port {self.port}{Style.RESET_ALL}')
 
     def tarball(self, tarball_directory_output: str) -> None:
         call_process('tar', ['-czvf', f'{tarball_directory_output}/{self.name}.tar.gz', self.abs_disk_path])
