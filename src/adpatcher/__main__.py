@@ -1,7 +1,3 @@
-from asyncore import file_dispatcher
-from email.policy import default
-from struct import pack
-from time import sleep
 from typing import Union
 from os import getcwd, stat
 from sys import argv
@@ -74,7 +70,7 @@ def execute_fix_action(args, services: list[Service]) -> None:
         if rollback_n < 0:
             rollback_n = -rollback_n
 
-        target_service.
+        target_service - rollback_n
 
 # patcher services list
 # patcher services tarball
