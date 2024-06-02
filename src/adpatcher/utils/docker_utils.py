@@ -101,9 +101,13 @@ def join_docker_services_with_their_disk_path(docker_active_services, docker_dis
     return complete_service_list
 
 def write_services_on_json(complete_service_list: list[Service], verbose: bool=False) -> None:
-    with open(get_patcher_service_file_path(), 'w') as f:
-        f.write(dumps([service.__dict__() for service in complete_service_list]))
-    output(f'Servizi mappati e salvati in {get_patcher_service_file_path()}', verbose)
+    try:
+        with open(get_patcher_service_file_path(), 'w') as f:
+            f.write(dumps([service.__dict__() for service in complete_service_list]))
+        output(f'Servizi mappati e salvati in {get_patcher_service_file_path()}', verbose)
+    except PermissionError as pe:
+        error(f'Errore durante la scrittura del file (permessi insufficienti) {get_patcher_service_file_path()}\n{pe}')
+        exit(1)
 
 def create_docker_service_objects(path: str='', verbose: bool=False, dockerv2: bool=False) -> list:
     docker_active_services: list = sorted(scan_for_docker_services(verbose), key=lambda service: service['name'])
