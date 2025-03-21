@@ -338,45 +338,6 @@ def back2version(path: str, version: int, backup: bool=True, docker_build: bool=
     elif debug:
         PATCHER_LOGGER.debug('makefile non trovato')
     print('Restore completed')
-
-# applica molteplici patch
-def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backup: bool=True, restore: bool=False) -> None:
-    validate(path, dir_allowed=False)
-    print(f'leggo da {path}')
-
-    patch = open(path, 'r')
-    paths: list[str] = patch.readlines()
-    last_makefile_path: str | None = None
-
-    for patch_path in paths:
-        patch_path = patch_path.strip()
-        if len(patch_path) <= 1 and docker_build and (last_makefile_path is not None):
-            if hard_build:
-                print(Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', 'hard', '-C', last_makefile_path])
-            else:
-                print(Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', '-C', last_makefile_path])
-            last_makefile_path = None
-        elif len(patch_path) > 2:
-            try:
-                path_orig, path_new_file = re.findall('^([\/\S\s]{1,})\s([\S\s]{1,})$', patch_path)[0]
-                if not restore:
-                    print(Fore.YELLOW + f'{path_orig} -> {path_new_file}' + Fore.RESET)
-                    last_makefile_path = apply_patch(path_orig, path_new_file, docker_build=False, quiet=True, backup=backup)
-                else:
-                    print(Fore.YELLOW + f'{path_orig}' + Fore.RESET)
-                    last_makefile_path = back2version(dir_safe(path_orig, path_new_file), -1, backup=backup, docker_build=False)
-            except:
-                print(f'{path_orig} non applicata')
-    if docker_build and (last_makefile_path is not None):
-            if hard_build:
-                print(Fore.YELLOW + f"hard reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', 'hard', '-C', last_makefile_path])
-            else:
-                print(Fore.YELLOW + f"reboot per il container {'/'.join(last_makefile_path.split('/')[:-1])}\n" + Fore.RESET)
-                call(['make', '-C', last_makefile_path])
-            last_makefile_path = None
         
 def main():
     aparse = ArgumentParser(prog='patcher', description='gestore delle patch per attacco e difesa')
@@ -399,8 +360,8 @@ def main():
     ) # '--back' in sys.argv or '-b' in sys.argv
     aparse.add_argument('--debug', action='store_true', default=False, dest='debug')
     aparse.add_argument(
-        'action', required=True, dest='action', choices=['apply', 'a', 'back', 'b', 'file', 'f'], type=str, nargs=1,
-        help='[apply a] [path del vecchio file] [path del file]\n[back b] [path del file] [numero versione]\n[file f] [file con le modifiche multiple]'
+        'action', required=True, dest='action', choices=['apply', 'a', 'back', 'b'], type=str, nargs=1,
+        help='[apply a] [path del vecchio file] [path del file]\n[back b] [path del file] [numero versione]'
     )
     aparse.add_argument('action args', type=list, nargs='?', required=True, dest='action_args')
 
@@ -411,14 +372,11 @@ def main():
 
     # apply -> apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
     # back -> back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
-    # file -> parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup, restore=restore)
 
     if args.action == 'apply' or args.action == 'a':
-        pass
+        apply_patch(args.action_args[0], args.action_args[1], args.backup, args.docker_build, args.hard_build, args.debug)
     elif args.action == 'back' or args.action == 'b':
-        pass
-    elif args.action == 'file' or args.action == 'f':
-        pass
+        back2version(args.action_args[0], int(args.action_args[1]), args.backup, args.docker_build, args.hard_build, args.debug)
 
 if __name__ == '__main__':
     main()
