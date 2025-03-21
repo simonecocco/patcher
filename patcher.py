@@ -1,32 +1,39 @@
 #!/usr/bin/python3
 
+from argparse import ArgumentParser
 import sys
-from colorama import Fore, Back, Style
-import os
+from os import getcwd
+from os.path import join, isfile, exists
 from subprocess import call, Popen, PIPE
 import re
 
-current_dir: str = os.getcwd() + '/'
+current_dir: str = getcwd() + '/'
 tab_char = '\t'
 new_line = '\n'
-VERSION: str = '1.2.1'
+VERSION: str = 'legacy'
 
 # Stampa i crediti e la versione
 def print_credit() -> None:
-    print(Fore.BLUE + '''
-▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-█▀▄▄▀█ ▄▄▀█▄ ▄█▀▄▀█ ████ ▄▄█ ▄▄▀
-█ ▀▀ █ ▀▀ ██ ██ █▀█ ▄▄ █ ▄▄█ ▀▀▄
-█ ████▄██▄██▄███▄██▄██▄█▄▄▄█▄█▄▄
-▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+    print(f'''
+             _       _               
+            | |     | |              
+ _ __   __ _| |_ ___| |__   ___ _ __ 
+| '_ \ / _` | __/ __| '_ \ / _ \ '__|
+| |_) | (_| | || (__| | | |  __/ |   
+| .__/ \__,_|\__\___|_| |_|\___|_|   
+| |                                  
+|_|                                  
 
-    ''' + Fore.RESET)
-    print(Fore.GREEN + 'made with ❤️ from d1dpvl' + Fore.RESET + f'\nVersione: {VERSION}\n')
+legacy version (https://github.com/simonecocco/patcher)
 
-# si assicura che il makefile esista
-def makefile_check(path: str) -> None:
-    target: str = os.path.join(path, 'makefile')
-    if not os.path.exists(target) or not os.path.isfile(target):
+made with ❤️ from simonecocco
+    ''')
+
+
+def makefile_create(path: str) -> None:
+    target: str = join(path, 'makefile') # percorso del makefile
+    if not exists(target) or not isfile(target):
+        # in caso esso non esista
         makefile = open(target, 'w')
         makefile.write('all: build up\n')
         makefile.write('build:\n\tsudo docker-compose build\n')
@@ -206,28 +213,24 @@ def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backu
                 call(['make', '-C', last_makefile_path])
             last_makefile_path = None
         
-# main
-if '-q' not in sys.argv:
-    print_credit()
-if len(sys.argv) < 3 or 'help' in sys.argv:
-    print_help()
 
-recover_backup: bool = '--no-bkp' not in sys.argv
-docker_build: bool = '--no-docker' not in sys.argv
-hard_build: bool = '--hard-build' in sys.argv
-restore: bool = '--back' in sys.argv or '-b' in sys.argv
+def main():
+    aparse = ArgumentParser(prog='patcher', description='gestore delle patch per attacco e difesa')
+    aparse.add_argument('-q', '--quiet', action='store_true', dest='quiet', default=False)
+    aparse.add_argument('--no-bkp', '--no-backup', action='store_false', dest='recover_backup', default=True) # '--no-bkp' not in sys.argv
+    aparse.add_argument('--no-docker', action='store_false', dest='docker_build', default=True) # '--no-docker' not in sys.argv
+    aparse.add_argument('-H', '--hard-build', action='store_true', dest='hard_build', default=False) # '--hard-build' in sys.argv
+    aparse.add_argument('-b', '--back', action='store_true', dest='restore', default=False) # '--back' in sys.argv or '-b' in sys.argv
+    aparse.add_argument('action', dest='action', choices=['apply', 'a', 'back', 'b', 'file', 'f'], type=str, nargs=1)
 
-action: str = sys.argv[1]
-first_arg: str = sys.argv[2]
-second_arg: str = ''
-if action != 'f' and action != 'file':
-	second_arg = sys.argv[3]
+    args = aparse.parse_args()
 
-if action == 'apply' or action == 'a':
-    apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
-elif action == 'back' or action == 'b':
-    back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
-elif action == 'file' or action == 'f':
-    parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup, restore=restore)
-else:
-    print_help()
+    if not args.quiet:
+        print_credit()
+
+    # apply -> apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
+    # back -> back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
+    # file -> parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup, restore=restore)
+
+if __name__ == '__main__':
+    main()
