@@ -223,20 +223,33 @@ def first_backup(path, debug=False):
 def get_patch_file_path(path):
     return join(dirname(path), f'.{basename(path)}.json')
 
-def compute_edits(path_orig, edit_list, ):
+def edit_bytes(bytes_content, editA, editB):
+    bytes_content = [b for b in bytes_content]
+    for edit in editA:
+        bytes_content[edit[0]:edit[1]] = [-1] * (edit[1]-edit[0])
+    for edit in editB:
+        bytes_content[edit[0]:edit[1]] = [int(f'{high}{low}', 16) for high, low in zip(edit[2][::2], edit[2][1::2])]
+
+    return b''.join(i.to_bytes(1) for i in bytes_content if i != -1)
+
+def compute_edits(path_orig, edit_list):
     with open(path_orig, 'rb') as dest_file:
         content = dest_file.read()
 
-    content = [b for b in content]
-    for edit in edit_list['A']:
-        content[edit[0]:edit[1]] = [-1] * (edit[1]-edit[0])
-    for edit in edit_list['B']:
-        content[edit[0]:edit[1]] = [int(f'{high}{low}', 16) for high, low in zip(edit[2][::2], edit[2][1::2])]
-
-    final_content = b''.join(i.to_bytes(1) for i in content if i != -1)
-
     with open(path_orig, 'wb') as dest_file:
-        dest_file.write(final_content)
+        dest_file.write(edit_bytes(content, edit_list['A'], edit_list['B']))
+
+def compute_restore(path_orig, edits_list_of_list):
+    with open(path_orig, 'rb') as dest_file:
+        content = dest_file.read()
+
+    print(edits_list_of_list)
+    for dictAB in edits_list_of_list[::-1]:
+        print(content, dictAB)
+        content = edit_bytes(content, dictAB['B'], dictAB['A'])
+        print(content)
+
+    return content
 
 def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_build: bool=True, hard_build: bool=False, debug=False) -> str:
     print(f'patching {path_orig} con {path_new_file}')
@@ -285,39 +298,46 @@ def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_bu
 
     print('Patch applicata correttamente')
 
-    
-
 # torna indietro con le versioni
-def back2version(path: str, version: int, backup: bool=True, docker_build: bool=True, hard_build: bool=False) -> str:
-    path_n: int = 0
-    while os.path.exists(f'{path}.bkp{path_n}'):
-        path_n += 1
-    print(f'Ultima versione: {path_n - 1}')
-    target_version = path_n + version if version < 0 else version
-    target_path: str = f'{path}.bkp{target_version}'
-    if not os.path.exists(target_path):
-        print(f'versione {target_version} inesistente ({target_path})')
-        sys.exit(1)
+def back2version(path: str, version: int, backup: bool=True, docker_build: bool=True, hard_build: bool=False, debug=False) -> str:
+    path = abspath(path)
+    assert validate_path(path), f'{path} inesistente!'
+    assert exists(get_patch_file_path(path)), 'il file è alla sua prima versione'
+
+    with open(get_patch_file_path(path), 'r') as patch_file:
+        patch_list = loads(patch_file.read())
+
+    assert version > -1 and version < len(patch_list), 'versione fuori dal range massimo'
+
+    with open(path, 'rb') as path_content:
+        content_of_path = path_content.read()
+
+    edit_list = patch_list[version:]
+    restored_content = compute_restore(path, edit_list)
+    print(content_of_path, restored_content)
     
-    diff: str = get_differences(path, target_path)
-    risp: str = str(input(f"sei sicuro di voler tornare indietro? (y/n)\nGuarda le modifiche:\n{diff}\n")).strip()
+    print_diff_screen(f'{path} ATTUALE', content_of_path, f'{path} VERSIONE {version}', restored_content)
+    
+    risp: str = str(input(f"sei sicuro di voler tornare indietro? (y/n) ")).strip()
     if not ('y' in risp) and not('Y' in risp):
         print('Patch non applicata')
-        sys.exit(1)
-    if backup:
-        call(['mv', path, f'{path}.bkp{path_n}'])
-    call(['cp' if backup else 'mv', target_path, path])
-    makefile_path: str = path.replace(current_dir, '') if current_dir in path else path
-    makefile_path = makefile_path.split('/')[0]
-    makefile_check(makefile_path)
-    if docker_build and not hard_build:
-        call(['make', '-C', makefile_path])
-    elif docker_build and hard_build:
-        call(['make', 'hard', '-C', makefile_path])
-    else:
-        print('Usa ' + Fore.YELLOW + 'make' + Fore.RESET + ' per applicare la patch')
+        return
+    
+    with open(path, 'wb') as origin_file:
+        origin_file.write(restored_content)
+
+    makefile_path = find_dockerfile(path)
+    if makefile_path is not None:
+        makefile_create(makefile_path)
+        if docker_build and not hard_build:
+            PATCHER_LOGGER.debug('docker build normale')
+            call(['make', '-C', makefile_path])
+        elif docker_build and hard_build:
+            PATCHER_LOGGER.debug('docker build completa')
+            call(['make', 'hard', '-C', makefile_path])
+    elif debug:
+        PATCHER_LOGGER.debug('makefile non trovato')
     print('Restore completed')
-    return makefile_path
 
 # applica molteplici patch
 def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backup: bool=True, restore: bool=False) -> None:
