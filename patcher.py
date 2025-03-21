@@ -2,15 +2,17 @@
 
 from argparse import ArgumentParser
 import sys
-from os import getcwd
+from os import getcwd, access as permissions, R_OK, W_OK
 from os.path import join, isfile, exists
 from subprocess import call, Popen, PIPE
 import re
+from logging import getLogger
 
 current_dir: str = getcwd() + '/'
 tab_char = '\t'
 new_line = '\n'
 VERSION: str = 'legacy'
+PATCHER_LOGGER = getLogger('patcher')
 
 # Stampa i crediti e la versione
 def print_credit() -> None:
@@ -47,24 +49,24 @@ def call_process(cmd: list) -> list:
     process: Popen = Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     return [stdout.decode('utf-8'), stderr.decode('utf-8')]
+    
+def validate_path(path_to_validate, debug=False):
+    '''
+    Valida un path fornito.
+    - path_to_validate prende una stringa (percorso)
+    - dir_allowed prende un bool
+    ritorna True se il path è ok
+    '''
 
-# controlla che il path sia a posto
-def validate(path: str, dir_allowed: bool=True) -> bool:
-    if os.path.exists(path):
-        if os.path.isfile(path) or dir_allowed:
-            if not os.access(path, os.R_OK) or not os.access(path, os.W_OK):
-                call(['sudo', 'chmod', '-R', '777', path])
-                print(f"{path} is a {'file' if os.path.isfile(path) else 'dir'}")
-                return True
-        else:
-            print(Fore.RED + f'{path} is a directory' + Fore.RESET)
-            sys.exit(1)
-            return False
-    else:
-        print(Fore.RED + f'{path} not exist' + Fore.RESET)
-        sys.exit(1)
+    global PATCHER_LOGGER
+
+    if path_to_validate is None or not exists(path_to_validate):
+        if debug: PATCHER_LOGGER.debug('incorrect path')
         return False
-
+    
+    permission_allowed = permissions(path_to_validate, R_OK) and permissions(path_to_validate, W_OK)
+    if debug: PATCHER_LOGGER.debug(f'permission on {path_to_validate} is {"OK" if permission_allowed else "NOT OK"}')
+    return permission_allowed
 
 # mostra le differenze
 def get_differences(path_old: str, path_new: str) -> str:
