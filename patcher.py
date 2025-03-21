@@ -48,24 +48,6 @@ def call_process(cmd: list) -> list:
     stdout, stderr = process.communicate()
     return [stdout.decode('utf-8'), stderr.decode('utf-8')]
 
-# Stampa la guida
-def print_help() -> None:
-    print('''come usarlo:
-    [apply a] [path del vecchio file] [path del file] OPZIONI
-    [back b] [path del file] [numero versione] OPZIONI
-    [file f] [file con le modifiche multiple] OPZIONI
-
-    OPZIONI
-
-    -q -> non stampa i crediti
-    --no-bkp -> non fa il backup del file che si va a sostituire
-    --no-docker -> non fa il build del container
-    --hard-build -> esegue un docker-compose down e poi up. Non funziona se --no-docker è presente
-    --back -> al posto di applicare la patch, torna una versione indietro per tutti i file (può essere usato solo con 'f')
-
-    ''')
-    sys.exit(0)
-
 # controlla che il path sia a posto
 def validate(path: str, dir_allowed: bool=True) -> bool:
     if os.path.exists(path):
@@ -213,20 +195,41 @@ def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backu
                 call(['make', '-C', last_makefile_path])
             last_makefile_path = None
         
+def configure_env(debug=False):
+    pass #TODO
 
 def main():
     aparse = ArgumentParser(prog='patcher', description='gestore delle patch per attacco e difesa')
-    aparse.add_argument('-q', '--quiet', action='store_true', dest='quiet', default=False)
-    aparse.add_argument('--no-bkp', '--no-backup', action='store_false', dest='recover_backup', default=True) # '--no-bkp' not in sys.argv
-    aparse.add_argument('--no-docker', action='store_false', dest='docker_build', default=True) # '--no-docker' not in sys.argv
-    aparse.add_argument('-H', '--hard-build', action='store_true', dest='hard_build', default=False) # '--hard-build' in sys.argv
-    aparse.add_argument('-b', '--back', action='store_true', dest='restore', default=False) # '--back' in sys.argv or '-b' in sys.argv
-    aparse.add_argument('action', dest='action', choices=['apply', 'a', 'back', 'b', 'file', 'f'], type=str, nargs=1)
+    aparse.add_argument('-q', '--quiet', action='store_true', dest='quiet', default=False, help='non stampa i crediti')
+    aparse.add_argument(
+        '--no-bkp', '--no-backup', action='store_false', dest='recover_backup', default=True,
+        help='non fa il backup del file che si va a sostituire'
+    ) # '--no-bkp' not in sys.argv
+    aparse.add_argument(
+        '--no-docker', action='store_false', dest='docker_build', default=True,
+        help='non fa il build del container'
+    ) # '--no-docker' not in sys.argv
+    aparse.add_argument(
+        '-H', '--hard-build', action='store_true', dest='hard_build', default=False,
+        help='esegue un docker-compose down e poi up. Non funziona se --no-docker è presente'
+    ) # '--hard-build' in sys.argv
+    aparse.add_argument(
+        '-b', '--back', action='store_true', dest='restore', default=False,
+        help='al posto di applicare la patch, torna una versione indietro per tutti i file (può essere usato solo con opzione file)'
+    ) # '--back' in sys.argv or '-b' in sys.argv
+    aparse.add_argument('--debug', action='store_true', default=False, dest='debug')
+    aparse.add_argument(
+        'action', required=True, dest='action', choices=['apply', 'a', 'back', 'b', 'file', 'f'], type=str, nargs=1,
+        help='[apply a] [path del vecchio file] [path del file]\n[back b] [path del file] [numero versione]\n[file f] [file con le modifiche multiple]'
+    )
+    aparse.add_argument('action args', type=list, nargs='?', required=True, dest='action_args')
 
     args = aparse.parse_args()
 
     if not args.quiet:
         print_credit()
+
+    configure_env(debug=args.debug)
 
     # apply -> apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
     # back -> back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
