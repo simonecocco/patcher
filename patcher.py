@@ -129,8 +129,15 @@ def get_differences(bytes1, bytes2):
 
     return semplificate_list(indexesA), semplificate_list(indexesB)
 
-def print_diff_screen(title1, bytes1, title2, bytes2):
-    '''stampa una schermata con le differenze fra due contenuti'''
+def print_diff_screen(title1, bytes1, title2, bytes2, sep_len=60):
+    '''
+    stampa una schermata con le differenze fra due contenuti
+    - title1 stringa che descrive brevemente
+    - bytes1 bytes da confrontare
+    - title2 stringa che descrive brevemente
+    - bytes2 bytes da confrontare
+    stampa direttamente la view
+    '''
     def print_header(separator, title):
         print(f'{separator}\nVista su {title}')
 
@@ -166,7 +173,6 @@ def print_diff_screen(title1, bytes1, title2, bytes2):
             if module != 0:
                 print(' '.join(hex_list[-module:] + ['    '] * (print_len - module)), ''.join(chr_list[-module:]))
 
-    sep_len = 60
     separator_start_end = '#' * sep_len
     indexes_bytes1, indexes_bytes2 = get_differences(bytes1, bytes2)
     print_header(separator_start_end, title1)
