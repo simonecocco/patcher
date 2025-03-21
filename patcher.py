@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 from argparse import ArgumentParser
-from os import getcwd, access as permissions, R_OK, W_OK
-from os.path import join, isfile, exists
+from os import getcwd, access as permissions, R_OK, W_OK, listdir
+from os.path import join, isfile, exists, basename, abspath, dirname, isdir
 from subprocess import call, Popen, PIPE
 from logging import getLogger
 from string import printable
@@ -12,6 +12,7 @@ tab_char = '\t'
 new_line = '\n'
 VERSION: str = 'legacy'
 PATCHER_LOGGER = getLogger('patcher')
+COMPOSE_NAMES = ['compose.yml', 'compose.yaml', 'docker-compose.yaml', 'docker-compose.yml']
 
 # Stampa i crediti e la versione
 def print_credit() -> None:
@@ -30,6 +31,28 @@ legacy version (https://github.com/simonecocco/patcher)
 made with ❤️ from simonecocco
     ''')
 
+def find_dockerfile(generic_path):
+    '''dato un path cerca un dockerfile'''
+
+    global COMPOSE_NAMES
+
+    if not isdir(generic_path):
+        generic_path = dirname(generic_path)
+
+    while True:
+        try:
+            generic_path_files = listdir(generic_path)
+            if any((compose_name in generic_path_files for compose_name in COMPOSE_NAMES)):
+                return [
+                    docker_compose_path
+                    for compose_name in generic_path_files
+                    if exists(docker_compose_path := join(generic_path, compose_name))
+                ][0]
+            else:
+                generic_path = dirname(generic_path)
+                if generic_path == '/': return None
+        except:
+            return None
 
 def makefile_create(path: str) -> None:
     target: str = join(path, 'makefile') # percorso del makefile
@@ -97,7 +120,6 @@ def semplificate_list(a_b_list):
     new_list.append((start_num, end_num))
     return new_list
 
-# trova le differenze
 def get_differences(bytes1, bytes2):
     ''''
     Controlla le differenze fra content1 e content2 e
@@ -153,6 +175,7 @@ def print_diff_screen(title1, bytes1, title2, bytes2, sep_len=60):
 
     def print_diff(content, indexes_list, offset=10, print_len=8):
         content_len = len(content)
+        content_edits = []
         for index_pair in indexes_list:
             start_index, end_index = index_pair
             end_index += 1
@@ -173,61 +196,64 @@ def print_diff_screen(title1, bytes1, title2, bytes2, sep_len=60):
             if module != 0:
                 print(' '.join(hex_list[-module:] + ['    '] * (print_len - module)), ''.join(chr_list[-module:]))
 
+            content_edits.append((index_pair[0], index_pair[1], hex_list))
+        return content_edits
+
     separator_start_end = '#' * sep_len
     indexes_bytes1, indexes_bytes2 = get_differences(bytes1, bytes2)
+    edits_dict = {}
     print_header(separator_start_end, title1)
-    print_diff(bytes1, indexes_bytes1)
-    # ...
+    edits_dict['A'] = print_diff(bytes1, indexes_bytes1)
     print_header('-' * sep_len, title2)
-    print_diff(bytes2, indexes_bytes2)
-    # ...
+    edits_dict['B'] = print_diff(bytes2, indexes_bytes2)
     print(separator_start_end)
 
-def dir_safe(dirpath: str, filepath: str) -> str:
-    validate(dirpath, dir_allowed=True)
-    if os.path.isdir(dirpath):
-        dirpath = os.path.join(dirpath, os.path.basename(filepath))
-        validate(dirpath, dir_allowed=False)
-        return dirpath
-    else:
-        return dirpath
+    return edits_dict
 
-# esegue il backup del file
-def backup_file(path: str) -> None:
-    path_n: int = 0
-    while os.path.exists(f'{path}.bkp{path_n}'):
-        path_n += 1
-    call(['cp', path, path+f'.bkp{path_n}'])
-    print(f'new file {path}.bkp{path_n}')
-    if not os.path.exists(f'{path}.bkp{path_n}'):
-        print(f'Backup failed ({path})')
-        sys.exit(1)
-    print(Fore.YELLOW + f'Per tornare indietro usa\nback {path} {path_n}' + Fore.RESET)
+def first_backup(path, debug=False):
+    '''esegue un backup del file alla sua versione originale'''
+    path = abspath(path) # prendo la dir assoluta
+    backup_path = join(dirname(path), f'.{basename(path)}.original')
+    if exists(backup_path):
+        if debug: PATCHER_LOGGER.debug(f'{backup_path} esiste già')
+        return
 
-# applica la patch
-def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_build: bool=True, quiet: bool=False, hard_build: bool=False) -> str:
-    print(f'patching {path_orig} with {path_new_file}')
-    validate(path_new_file, dir_allowed=False)
-    path_orig = dir_safe(path_orig, path_new_file)
-    diff: str = get_differences(path_orig, path_new_file)
-    risp: str = str(input(f"sei sicuro di voler applicare la patch? (y/n)\nGuarda le modifiche:\n{diff}\n")).strip()
+    if debug: PATCHER_LOGGER.debug(f'eseguo primo backup del file {path} in {backup_path}')
+    call(['cp', path, backup_path])
+
+def compute_edits(path_orig, path_new_file, edit_list):
+    print(edit_list)
+
+def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_build: bool=True, hard_build: bool=False, debug=False) -> str:
+    print(f'patching {path_orig} con {path_new_file}')
+    assert validate_path(path_new_file, debug), f'{path_new_file} non è un percorso valido'
+    assert validate_path(path_orig, debug), f'{path_orig} non è un percorso valido'
+
+    path_orig = abspath(path_orig)
+    path_new_file = abspath(path_new_file)
+
+    if backup: first_backup(path_orig, debug)
+
+    with open(path_orig, 'rb') as origin_file:
+        original_file_bytes = origin_file.read()
+
+    with open(path_new_file, 'rb') as new_file:
+        new_file_bytes = new_file.read()
+
+    edit_list = print_diff_screen(path_orig, original_file_bytes, path_new_file, new_file_bytes)
+    risp: str = str(input(f"sei sicuro di voler applicare la patch? (y/n) \n")).strip()
     if not ('y' in risp) and not('Y' in risp):
         print('Patch non applicata')
-        sys.exit(1)
-    print(path_orig)
-    backup_file(path_orig)
-    call(['cp' if backup else 'mv', path_new_file, path_orig])
+        return
+    
+    compute_edits(path_orig, path_new_file, edit_list)
     makefile_path: str = path_orig.replace(current_dir, '') if current_dir in path_orig else path_orig
     makefile_path = makefile_path.split('/')[0]
-    makefile_check(makefile_path)
+    makefile_create(makefile_path)
     if docker_build and not hard_build:
         call(['make', '-C', makefile_path])
     elif docker_build and hard_build:
         call(['make', 'hard', '-C', makefile_path])
-    elif not quiet:
-        print('Usa ' + Fore.YELLOW + 'make' + Fore.RESET + ' per applicare la patch')
-    print('Patch applicata')
-    return makefile_path
 
 # torna indietro con le versioni
 def back2version(path: str, version: int, backup: bool=True, docker_build: bool=True, hard_build: bool=False) -> str:
@@ -300,9 +326,6 @@ def parse_file(path: str, docker_build: bool=True, hard_build: bool=False, backu
                 call(['make', '-C', last_makefile_path])
             last_makefile_path = None
         
-def configure_env(debug=False):
-    pass #TODO
-
 def main():
     aparse = ArgumentParser(prog='patcher', description='gestore delle patch per attacco e difesa')
     aparse.add_argument('-q', '--quiet', action='store_true', dest='quiet', default=False, help='non stampa i crediti')
@@ -334,11 +357,16 @@ def main():
     if not args.quiet:
         print_credit()
 
-    configure_env(debug=args.debug)
-
     # apply -> apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
     # back -> back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
     # file -> parse_file(first_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup, restore=restore)
+
+    if args.action == 'apply' or args.action == 'a':
+        pass
+    elif args.action == 'back' or args.action == 'b':
+        pass
+    elif args.action == 'file' or args.action == 'f':
+        pass
 
 if __name__ == '__main__':
     main()
