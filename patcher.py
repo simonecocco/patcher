@@ -29,8 +29,7 @@ def print_credit() -> None:
 
 legacy version (https://github.com/simonecocco/patcher)
 
-made with ❤️ from simonecocco
-    ''')
+made with <3 from simonecocco''')
 
 def find_dockerfile(generic_path):
     '''dato un path cerca un dockerfile'''
@@ -354,29 +353,21 @@ def main():
         '-H', '--hard-build', action='store_true', dest='hard_build', default=False,
         help='esegue un docker-compose down e poi up. Non funziona se --no-docker è presente'
     ) # '--hard-build' in sys.argv
-    aparse.add_argument(
-        '-b', '--back', action='store_true', dest='restore', default=False,
-        help='al posto di applicare la patch, torna una versione indietro per tutti i file (può essere usato solo con opzione file)'
-    ) # '--back' in sys.argv or '-b' in sys.argv
     aparse.add_argument('--debug', action='store_true', default=False, dest='debug')
     aparse.add_argument(
-        'action', required=True, dest='action', choices=['apply', 'a', 'back', 'b'], type=str, nargs=1,
+        'action', type=str, nargs='+',
         help='[apply a] [path del vecchio file] [path del file]\n[back b] [path del file] [numero versione]'
     )
-    aparse.add_argument('action args', type=list, nargs='?', required=True, dest='action_args')
 
     args = aparse.parse_args()
 
     if not args.quiet:
         print_credit()
 
-    # apply -> apply_patch(first_arg, second_arg, docker_build=docker_build, hard_build=hard_build, backup=recover_backup)
-    # back -> back2version(first_arg, int(second_arg), backup=recover_backup, docker_build=docker_build, hard_build=hard_build)
-
-    if args.action == 'apply' or args.action == 'a':
-        apply_patch(args.action_args[0], args.action_args[1], args.backup, args.docker_build, args.hard_build, args.debug)
-    elif args.action == 'back' or args.action == 'b':
-        back2version(args.action_args[0], int(args.action_args[1]), args.backup, args.docker_build, args.hard_build, args.debug)
+    if args.action[0] == 'apply' or args.action[0] == 'a':
+        apply_patch(args.action[1], args.action[2], args.recover_backup, args.docker_build, args.hard_build, args.debug)
+    elif args.action[0] == 'back' or args.action[0] == 'b':
+        back2version(args.action[1], int(args.action[2]), args.recover_backup, args.docker_build, args.hard_build, args.debug)
 
 if __name__ == '__main__':
     main()
