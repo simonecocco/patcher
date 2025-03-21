@@ -6,6 +6,7 @@ from os.path import join, isfile, exists, basename, abspath, dirname, isdir
 from subprocess import call, Popen, PIPE
 from logging import getLogger
 from string import printable
+from json import dumps, loads
 
 current_dir: str = getcwd() + '/'
 tab_char = '\t'
@@ -43,11 +44,7 @@ def find_dockerfile(generic_path):
         try:
             generic_path_files = listdir(generic_path)
             if any((compose_name in generic_path_files for compose_name in COMPOSE_NAMES)):
-                return [
-                    docker_compose_path
-                    for compose_name in generic_path_files
-                    if exists(docker_compose_path := join(generic_path, compose_name))
-                ][0]
+                return generic_path
             else:
                 generic_path = dirname(generic_path)
                 if generic_path == '/': return None
@@ -196,7 +193,9 @@ def print_diff_screen(title1, bytes1, title2, bytes2, sep_len=60):
             if module != 0:
                 print(' '.join(hex_list[-module:] + ['    '] * (print_len - module)), ''.join(chr_list[-module:]))
 
-            content_edits.append((index_pair[0], index_pair[1], hex_list))
+            real_start_index = index_pair[0]
+            real_end_index = index_pair[1]+1
+            content_edits.append((real_start_index, real_end_index, content[real_start_index:real_end_index].hex()))
         return content_edits
 
     separator_start_end = '#' * sep_len
@@ -221,8 +220,23 @@ def first_backup(path, debug=False):
     if debug: PATCHER_LOGGER.debug(f'eseguo primo backup del file {path} in {backup_path}')
     call(['cp', path, backup_path])
 
-def compute_edits(path_orig, path_new_file, edit_list):
-    print(edit_list)
+def get_patch_file_path(path):
+    return join(dirname(path), f'.{basename(path)}.json')
+
+def compute_edits(path_orig, edit_list, ):
+    with open(path_orig, 'rb') as dest_file:
+        content = dest_file.read()
+
+    content = [b for b in content]
+    for edit in edit_list['A']:
+        content[edit[0]:edit[1]] = [-1] * (edit[1]-edit[0])
+    for edit in edit_list['B']:
+        content[edit[0]:edit[1]] = [int(f'{high}{low}', 16) for high, low in zip(edit[2][::2], edit[2][1::2])]
+
+    final_content = b''.join(i.to_bytes(1) for i in content if i != -1)
+
+    with open(path_orig, 'wb') as dest_file:
+        dest_file.write(final_content)
 
 def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_build: bool=True, hard_build: bool=False, debug=False) -> str:
     print(f'patching {path_orig} con {path_new_file}')
@@ -246,14 +260,32 @@ def apply_patch(path_orig: str, path_new_file: str, backup: bool=True, docker_bu
         print('Patch non applicata')
         return
     
-    compute_edits(path_orig, path_new_file, edit_list)
-    makefile_path: str = path_orig.replace(current_dir, '') if current_dir in path_orig else path_orig
-    makefile_path = makefile_path.split('/')[0]
-    makefile_create(makefile_path)
-    if docker_build and not hard_build:
-        call(['make', '-C', makefile_path])
-    elif docker_build and hard_build:
-        call(['make', 'hard', '-C', makefile_path])
+    if exists(get_patch_file_path(path_orig)):
+        with open(get_patch_file_path(path_orig), 'r') as patch_file:
+            patch_file_content = loads(patch_file.read())
+    else:
+        patch_file_content = []
+
+    with open(get_patch_file_path(path_orig), 'w') as patch_file:
+        patch_file_content.append(edit_list)
+        patch_file.write(dumps(patch_file_content))
+
+    compute_edits(path_orig, edit_list)
+    makefile_path = find_dockerfile(path_orig)
+    if makefile_path is not None:
+        makefile_create(makefile_path)
+        if docker_build and not hard_build:
+            PATCHER_LOGGER.debug('docker build normale')
+            call(['make', '-C', makefile_path])
+        elif docker_build and hard_build:
+            PATCHER_LOGGER.debug('docker build completa')
+            call(['make', 'hard', '-C', makefile_path])
+    elif debug:
+        PATCHER_LOGGER.debug('makefile non trovato')
+
+    print('Patch applicata correttamente')
+
+    
 
 # torna indietro con le versioni
 def back2version(path: str, version: int, backup: bool=True, docker_build: bool=True, hard_build: bool=False) -> str:
