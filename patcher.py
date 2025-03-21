@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 
 from argparse import ArgumentParser
-import sys
 from os import getcwd, access as permissions, R_OK, W_OK
 from os.path import join, isfile, exists
 from subprocess import call, Popen, PIPE
-import re
 from logging import getLogger
+from string import printable
 
 current_dir: str = getcwd() + '/'
 tab_char = '\t'
@@ -68,17 +67,115 @@ def validate_path(path_to_validate, debug=False):
     if debug: PATCHER_LOGGER.debug(f'permission on {path_to_validate} is {"OK" if permission_allowed else "NOT OK"}')
     return permission_allowed
 
-# mostra le differenze
-def get_differences(path_old: str, path_new: str) -> str:
-    stdout, stderr = call_process(['diff', path_old, path_new])
-    old: list = []
-    new: list = []
-    for line in stdout.split('\n'):
-        if line.startswith('<'):
-            old.append(line)
-        elif line.startswith('>'):
-            new.append(line)
-    return f"{Fore.CYAN}{path_old}:{new_line}{(tab_char+new_line).join(old)}{new_line*2}{Fore.GREEN}{path_new}:{new_line}{(tab_char+new_line).join(new)}{Fore.RESET}"
+def semplificate_list(a_b_list):
+    '''
+    semplifica una lista dove i numeri potrebbero esser sequenziali
+    creando una lista con una tupla che indica dove iniziano e dove finiscono
+    '''
+    if a_b_list is None or a_b_list == []: return []
+    if len(a_b_list) == 1: return [(a_b_list[0], a_b_list[0])]
+
+    new_list = []
+
+    start_num = -1
+    end_num = -1
+    for index in range(len(a_b_list)-1):
+        current_num = a_b_list[index]
+        next_num = a_b_list[index+1]
+
+        if start_num == -1:
+            start_num = current_num
+            end_num = current_num
+
+        if  next_num == end_num + 1:
+            end_num = next_num
+        else:
+            new_list.append((start_num, end_num))
+            start_num = -1
+            end_num = -1
+
+    new_list.append((start_num, end_num))
+    return new_list
+
+# trova le differenze
+def get_differences(bytes1, bytes2):
+    ''''
+    Controlla le differenze fra content1 e content2 e
+    ritorna una lista con gli indici dei caratteri di A e di B differenti
+    '''
+    indexesA = []
+    indexesB = []
+
+    lenA = len(bytes1)
+    lenB = len(bytes2)
+    len_max = max(lenA, lenB)
+    for general_index in range(len_max):
+        current_byte_a = bytes1[general_index] if general_index < lenA else None
+        current_byte_b = bytes2[general_index] if general_index < lenB else None
+
+        # se non vi son più byte disponibili in A
+        if current_byte_a is None:
+            indexesB.append(general_index)
+            continue
+
+        # se non vi son più byte disponibili in B
+        if current_byte_b is None:
+            indexesA.append(general_index)
+            continue
+
+        if current_byte_a != current_byte_b:
+            indexesA.append(general_index)
+            indexesB.append(general_index)
+
+    return semplificate_list(indexesA), semplificate_list(indexesB)
+
+def print_diff_screen(title1, bytes1, title2, bytes2):
+    '''stampa una schermata con le differenze fra due contenuti'''
+    def print_header(separator, title):
+        print(f'{separator}\nVista su {title}')
+
+    def hexify(b):
+        printable_codes = [hex(ord(c))[2:] for c in printable]
+        hex_string = b.hex()
+        hex_list = []
+        chr_list = []
+        for high, low in zip(hex_string[::2], hex_string[1::2]):
+            hex_list.append(f'0x{high}{low}')
+            chr_list.append(chr(int(f'{high}{low}', 16)) if f'{high}{low}' in printable_codes else '.')
+        return hex_list, chr_list
+
+    def print_diff(content, indexes_list, offset=10, print_len=8):
+        content_len = len(content)
+        for index_pair in indexes_list:
+            start_index, end_index = index_pair
+            end_index += 1
+            start_index = start_index-offset if start_index-offset > 0 else 0
+            end_index = end_index+offset if end_index+offset < content_len else content_len
+
+            tmp_content = content[start_index:end_index]
+            header = f'\n({start_index}-{end_index})'
+            print(f'{header} ', end='')
+            header = ' ' * (len(header)-1)
+            hex_list, chr_list = hexify(tmp_content)
+            module = len(hex_list) % print_len
+            times = len(hex_list) // print_len
+            for t in range(times):
+                print(' '.join(hex_list[t*print_len:(t+1)*print_len]), ''.join(chr_list[t*print_len:(t+1)*print_len]))
+                print(f'{header} ', end='')
+
+            if module != 0:
+                print(' '.join(hex_list[-module:] + ['    '] * (print_len - module)), ''.join(chr_list[-module:]))
+
+    sep_len = 60
+    separator_start_end = '#' * sep_len
+    indexes_bytes1, indexes_bytes2 = get_differences(bytes1, bytes2)
+    print_header(separator_start_end, title1)
+    print_diff(bytes1, indexes_bytes1)
+    # ...
+    print_header('-' * sep_len, title2)
+    print_diff(bytes2, indexes_bytes2)
+    # ...
+    print(separator_start_end)
 
 def dir_safe(dirpath: str, filepath: str) -> str:
     validate(dirpath, dir_allowed=True)
